@@ -14,6 +14,16 @@ Then open `http://localhost:8000`.
 
 No packages, account, database or API are required.
 
+## Project structure
+
+- `index.html` is the main entry point and contains the three page layouts.
+- `styles.css` contains the shared visual design and responsive styles.
+- `js/app.js` loads saved records and initializes the app modules.
+- `js/navigation.js` handles the three page views and mobile navigation.
+- `js/storage.js` validates, initializes, loads and saves Local Storage data.
+- `js/calculations.js` provides reusable, data-in/data-out currency, date and budget calculations.
+- `js/dashboard.js` renders the Dashboard and manages its financial records.
+
 ## Dashboard features
 
 - Add, edit and delete income sources, monthly commitments, daily expenses, and upcoming payments.
