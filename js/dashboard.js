@@ -1,18 +1,16 @@
-const STORAGE_KEY = "bolehbuy-finances";
-const STORAGE_VERSION = 1;
-const RECORD_TYPES = ["income", "commitment", "expense", "payment"];
-const CATEGORIES = {
-  commitment: ["BNPL", "Bills", "Subscriptions"],
-  expense: ["Food", "Transport", "Shopping", "Entertainment", "Others"],
-  payment: ["BNPL", "Bills", "Subscriptions", "Other"],
-};
+import {
+  byDateAscending,
+  currency,
+  currentMonthExpenses,
+  dateAfterDays,
+  formatDate,
+  getTotals,
+  isValidDate,
+  localDateString,
+  sumAmount,
+} from "./calculations.js";
+import { CATEGORIES, saveRecords as persistRecords } from "./storage.js";
 
-const navigationLinks = document.querySelectorAll("[data-page]");
-const pages = document.querySelectorAll("[data-page-panel]");
-const breadcrumb = document.querySelector("#page-breadcrumb");
-const sidebar = document.querySelector("#sidebar");
-const menuToggle = document.querySelector("#menu-toggle");
-const brandLink = document.querySelector(".brand");
 const dialog = document.querySelector("#record-dialog");
 const dialogContent = document.querySelector("#dialog-content");
 const notice = document.querySelector("#data-notice");
@@ -20,131 +18,20 @@ const notice = document.querySelector("#data-notice");
 let records = [];
 let storageReady = true;
 
-function localDateString(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function dateAfterDays(days) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return localDateString(date);
-}
-
-function makeSampleRecords() {
-  const year = new Date().getFullYear();
-  const month = String(new Date().getMonth() + 1).padStart(2, "0");
-  const sampleDate = (day) => `${year}-${month}-${String(day).padStart(2, "0")}`;
-  const seed = (id, type, name, category, amount, date = null, dueDate = null) => ({
-    id,
-    type,
-    name,
-    category,
-    amount,
-    date,
-    dueDate,
-  });
-
-  return [
-    seed("sample-income-allowance", "income", "Allowance", "Income", 1600),
-    seed("sample-income-job", "income", "Part-time Job", "Income", 600),
-    seed("sample-commitment-phone", "commitment", "Mobile Bill", "Bills", 58),
-    seed("sample-commitment-laptop", "commitment", "Laptop", "BNPL", 220),
-    seed("sample-commitment-bag", "commitment", "Everyday Bag", "BNPL", 150),
-    seed("sample-commitment-wifi", "commitment", "Wi-Fi Share", "Bills", 252),
-    seed("sample-expense-food", "expense", "Meals & drinks", "Food", 326, sampleDate(4)),
-    seed("sample-expense-travel", "expense", "Bus & train", "Transport", 148, sampleDate(10)),
-    seed("sample-expense-shopping", "expense", "Campus essentials", "Shopping", 168, sampleDate(17)),
-    seed("sample-expense-other", "expense", "Study printing", "Others", 100, sampleDate(24)),
-    seed("sample-payment-phone", "payment", "Mobile Bill", "Bills", 58, null, dateAfterDays(5)),
-    seed("sample-payment-course", "payment", "Course Materials", "BNPL", 45, null, dateAfterDays(8)),
-    seed("sample-payment-headphones", "payment", "Headphones", "BNPL", 72, null, dateAfterDays(12)),
-  ];
-}
-
-function isValidDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00`);
-  return !Number.isNaN(parsed.getTime()) && localDateString(parsed) === value;
-}
-
-function validateSavedRecords(value) {
-  if (!value || value.version !== STORAGE_VERSION || !Array.isArray(value.records)) {
-    throw new Error("Saved finance data has an unsupported format.");
-  }
-
-  const valid = value.records.every((record) => {
-    if (
-      !record ||
-      typeof record.id !== "string" ||
-      !RECORD_TYPES.includes(record.type) ||
-      typeof record.name !== "string" ||
-      !record.name.trim() ||
-      typeof record.category !== "string" ||
-      !Number.isFinite(record.amount) ||
-      record.amount <= 0 ||
-      !(record.date === null || isValidDate(record.date)) ||
-      !(record.dueDate === null || isValidDate(record.dueDate))
-    ) {
-      return false;
-    }
-
-    if (record.type === "income") return record.category === "Income";
-    if (record.type === "commitment") {
-      return CATEGORIES.commitment.includes(record.category);
-    }
-    if (record.type === "expense") {
-      return CATEGORIES.expense.includes(record.category) && isValidDate(record.date);
-    }
-    return CATEGORIES.payment.includes(record.category) && isValidDate(record.dueDate);
-  });
-
-  if (!valid) throw new Error("Some saved finance records are invalid.");
-  return value.records;
-}
-
 function setNotice(message, isError = false) {
   notice.textContent = message;
   notice.hidden = !message;
   notice.classList.toggle("is-error", isError);
 }
 
-function loadRecords() {
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved === null) {
-      records = makeSampleRecords();
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ version: STORAGE_VERSION, records }),
-      );
-      return;
-    }
-
-    records = validateSavedRecords(JSON.parse(saved));
-  } catch (error) {
-    storageReady = false;
-    records = makeSampleRecords();
-    setNotice(
-      `Saved data could not be loaded or browser storage is unavailable. The sample preview is shown; changes will not be saved. ${error.message}`,
-      true,
-    );
-  }
-}
-
-function saveRecords(nextRecords) {
+function updateRecords(nextRecords) {
   if (!storageReady) {
     setNotice("Browser storage is unavailable, so this change was not saved.", true);
     return false;
   }
 
   try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ version: STORAGE_VERSION, records: nextRecords }),
-    );
+    persistRecords(nextRecords);
   } catch (error) {
     setNotice(`Could not save your change in this browser: ${error.message}`, true);
     return false;
@@ -153,41 +40,6 @@ function saveRecords(nextRecords) {
   records = nextRecords;
   renderDashboard();
   return true;
-}
-
-function currency(amount) {
-  const absolute = Math.abs(amount);
-  const formatted = absolute.toLocaleString("en-MY", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: Number.isInteger(absolute) ? 0 : 2,
-  });
-  return amount < 0 ? `-RM ${formatted}` : `RM ${formatted}`;
-}
-
-function formatDate(value, options = { day: "numeric", month: "short" }) {
-  if (!isValidDate(value)) return "";
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-MY", options);
-}
-
-function sumAmount(items) {
-  const cents = items.reduce((total, item) => total + Math.round(item.amount * 100), 0);
-  return cents / 100;
-}
-
-function currentMonthExpenses() {
-  const month = localDateString().slice(0, 7);
-  return records.filter((record) => record.type === "expense" && record.date.startsWith(month));
-}
-
-function getTotals() {
-  const income = sumAmount(records.filter((record) => record.type === "income"));
-  const commitments = sumAmount(records.filter((record) => record.type === "commitment"));
-  const expenses = sumAmount(currentMonthExpenses());
-  return { income, commitments, expenses, remaining: income - commitments - expenses };
-}
-
-function byDateAscending(a, b) {
-  return a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name);
 }
 
 function createElement(tag, className, text) {
@@ -205,7 +57,7 @@ function renderSummary(totals) {
 
   const incomeSources = records.filter((record) => record.type === "income");
   const commitments = records.filter((record) => record.type === "commitment");
-  const expenses = currentMonthExpenses();
+  const expenses = currentMonthExpenses(records);
   document.querySelector('[data-summary-note="income"]').textContent = incomeSources.length
     ? incomeSources.length <= 2
       ? incomeSources.map((record) => record.name).join(" + ")
@@ -369,7 +221,7 @@ function renderPayments() {
 }
 
 function renderDashboard() {
-  const totals = getTotals();
+  const totals = getTotals(records);
   renderSummary(totals);
   renderSpendingOverview(totals);
   renderCommitmentBreakdown();
@@ -381,27 +233,6 @@ function renderDashboard() {
     day: "numeric",
     month: "long",
   })}`;
-}
-
-function showPage(pageName) {
-  const selectedLink = document.querySelector(`[data-page="${pageName}"]`);
-  const selectedPage = document.querySelector(`[data-page-panel="${pageName}"]`);
-  if (!selectedLink || !selectedPage) return;
-
-  navigationLinks.forEach((link) => {
-    const isActive = link === selectedLink;
-    link.classList.toggle("is-active", isActive);
-    if (isActive) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  });
-
-  pages.forEach((page) => {
-    page.hidden = page !== selectedPage;
-    page.classList.toggle("is-visible", page === selectedPage);
-  });
-  breadcrumb.textContent = selectedLink.querySelector("span").textContent;
-  sidebar.classList.remove("is-open");
-  menuToggle.setAttribute("aria-expanded", "false");
 }
 
 function categoryLabel(type) {
@@ -599,7 +430,7 @@ function renderRecordForm(type, record = null) {
       ? records.map((entry) => entry.id === record.id ? nextRecord : entry)
       : [...records, nextRecord];
 
-    if (saveRecords(nextRecords)) {
+    if (updateRecords(nextRecords)) {
       setNotice(`${categoryLabel(type)} ${record ? "updated" : "saved"}.`);
       renderManager(type);
     } else {
@@ -616,77 +447,60 @@ function renderRecordForm(type, record = null) {
   form.querySelector("input[name='name']").focus();
 }
 
-function openDialog() {
-  if (!dialog.open) dialog.showModal();
-}
+export function initializeDashboard(initialState) {
+  records = initialState.records;
+  storageReady = initialState.writable;
 
-navigationLinks.forEach((link) => {
-  link.addEventListener("click", (event) => {
-    event.preventDefault();
-    const pageName = link.dataset.page;
-    showPage(pageName);
-    window.history.replaceState(null, "", `#${pageName}`);
-  });
-});
+  if (initialState.error) setNotice(initialState.error, true);
 
-brandLink.addEventListener("click", (event) => {
-  event.preventDefault();
-  showPage("dashboard");
-  window.history.replaceState(null, "", "#dashboard");
-});
-
-menuToggle.addEventListener("click", () => {
-  const isOpen = sidebar.classList.toggle("is-open");
-  menuToggle.setAttribute("aria-expanded", String(isOpen));
-});
-
-document.addEventListener("click", (event) => {
-  const addButton = event.target.closest("[data-add]");
-  const manageButton = event.target.closest("[data-manage]");
-  if (addButton) {
-    renderRecordForm(addButton.dataset.add);
-    openDialog();
-    return;
+  function openDialog() {
+    if (!dialog.open) dialog.showModal();
   }
-  if (manageButton) {
-    renderManager(manageButton.dataset.manage);
-    openDialog();
-  }
-});
 
-dialogContent.addEventListener("click", (event) => {
-  const newButton = event.target.closest("[data-new-record]");
-  const editButton = event.target.closest("[data-edit-record]");
-  const deleteButton = event.target.closest("[data-delete-record]");
-  const backButton = event.target.closest("[data-back-to-manager]");
-
-  if (newButton) renderRecordForm(newButton.dataset.newRecord);
-  if (backButton) renderManager(backButton.dataset.backToManager);
-  if (editButton) {
-    const record = records.find((item) => item.id === editButton.dataset.editRecord);
-    if (record) renderRecordForm(editButton.dataset.recordType, record);
-  }
-  if (deleteButton) {
-    const target = records.find((item) => item.id === deleteButton.dataset.deleteRecord);
-    if (!target) return;
-    const nextRecords = records.filter((item) => item.id !== target.id);
-    if (saveRecords(nextRecords)) {
-      setNotice(`${categoryLabel(target.type)} deleted.`);
-      renderManager(target.type);
-    } else {
-      const error = createElement("p", "form-error", notice.textContent);
-      error.setAttribute("role", "alert");
-      dialogContent.prepend(error);
+  document.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-add]");
+    const manageButton = event.target.closest("[data-manage]");
+    if (addButton) {
+      renderRecordForm(addButton.dataset.add);
+      openDialog();
+      return;
     }
-  }
-});
+    if (manageButton) {
+      renderManager(manageButton.dataset.manage);
+      openDialog();
+    }
+  });
 
-dialog.addEventListener("click", (event) => {
-  if (event.target === dialog || event.target.closest("[data-close-dialog]")) dialog.close();
-});
+  dialogContent.addEventListener("click", (event) => {
+    const newButton = event.target.closest("[data-new-record]");
+    const editButton = event.target.closest("[data-edit-record]");
+    const deleteButton = event.target.closest("[data-delete-record]");
+    const backButton = event.target.closest("[data-back-to-manager]");
 
-loadRecords();
-renderDashboard();
+    if (newButton) renderRecordForm(newButton.dataset.newRecord);
+    if (backButton) renderManager(backButton.dataset.backToManager);
+    if (editButton) {
+      const record = records.find((item) => item.id === editButton.dataset.editRecord);
+      if (record) renderRecordForm(editButton.dataset.recordType, record);
+    }
+    if (deleteButton) {
+      const target = records.find((item) => item.id === deleteButton.dataset.deleteRecord);
+      if (!target) return;
+      const nextRecords = records.filter((item) => item.id !== target.id);
+      if (updateRecords(nextRecords)) {
+        setNotice(`${categoryLabel(target.type)} deleted.`);
+        renderManager(target.type);
+      } else {
+        const error = createElement("p", "form-error", notice.textContent);
+        error.setAttribute("role", "alert");
+        dialogContent.prepend(error);
+      }
+    }
+  });
 
-const initialPage = window.location.hash.slice(1);
-if (initialPage) showPage(initialPage);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog || event.target.closest("[data-close-dialog]")) dialog.close();
+  });
+
+  renderDashboard();
+}
