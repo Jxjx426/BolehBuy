@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="BolehBuy? is a friendly money companion for thinking before you tap."
+    />
+    <title>BolehBuy? — Think Before You Tap.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#dashboard" aria-label="BolehBuy? home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 42 42" fill="none">
+              <path d="M8 11.5c0-2 1.6-3.5 3.5-3.5h19c2 0 3.5 1.5 3.5 3.5v22c0 1.1-.9 2-2 2H10c-1.1 0-2-.9-2-2v-22Z" fill="currentColor" />
+              <path d="M14 8v7m14-7v7M8 17h26" stroke="#fffdf7" stroke-width="2.4" stroke-linecap="round" />
+              <path d="m16 25 3.1 3.1 7-7" stroke="#fffdf7" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <span class="brand-name">BolehBuy<span>?</span></span>
+            <span class="brand-tagline">Think Before You Tap.</span>
+          </span>
+        </a>
+
+        <div class="nav-caption">YOUR LITTLE MONEY SPACE</div>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a class="nav-link is-active" href="#dashboard" data-page="dashboard" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2" /><rect x="13.5" y="3.5" width="7" height="4" rx="2" /><rect x="13.5" y="9.5" width="7" height="11" rx="2" /><rect x="3.5" y="13.5" width="7" height="7" rx="2" /></svg>
+            <span>My Money Dashboard</span>
+          </a>
+          <a class="nav-link" href="#simulator" data-page="simulator">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Z" /><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2" /></svg>
+            <span>BolehBuy? Simulator</span>
+          </a>
+          <a class="nav-link" href="#scam-checker" data-page="scam-checker">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 7v5c0 5-3.7 8-9 9-5.3-1-9-4-9-9V7l9-4Z" /><path d="M12 8v5m0 3h.01" /></svg>
+            <span>Scam Checker</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-note">
+          <span class="note-sparkle" aria-hidden="true">✳</span>
+          <p>Small steps today,<br />more breathing room tomorrow.</p>
+          <span class="note-doodle" aria-hidden="true">♡</span>
+        </div>
+        <div class="sidebar-footer">
+          <span class="online-dot" aria-hidden="true"></span>
+          <span>Your money, your pace.</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          </button>
+          <div class="breadcrumb"><span>My space</span><span class="breadcrumb-slash">/</span><strong id="page-breadcrumb">My Money Dashboard</strong></div>
+          <div class="topbar-date"><span aria-hidden="true">☼</span> Saturday, 31 October</div>
+        </header>
+
+        <section class="page is-visible" id="dashboard" data-page-panel="dashboard" aria-labelledby="dashboard-title">
+          <div class="welcome-row">
+            <div>
+              <p class="eyebrow">YOUR MONEY, AT A GLANCE <span class="eyebrow-star">✳</span></p>
+              <h1 id="dashboard-title">A little check-in, <span class="hand-underline">a lot of clarity.</span></h1>
+              <p class="welcome-copy">Here’s how your October is looking. You’ve got this!</p>
+            </div>
+            <div class="month-picker" aria-label="Showing October 2026">
+              <span class="calendar-icon" aria-hidden="true">▦</span>
+              October 2026
+              <span class="picker-chevron" aria-hidden="true">⌄</span>
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <article class="summary-card income-card">
+              <div class="card-topline"><span>Monthly income</span><span class="card-icon income-icon" aria-hidden="true">↗</span></div>
+              <div class="amount">RM 2,200</div>
+              <div class="card-foot"><span class="status-dot green"></span>Allowance + part-time</div>
+              <span class="card-doodle" aria-hidden="true">✳</span>
+            </article>
+            <article class="summary-card commitment-card">
+              <div class="card-topline"><span>Monthly commitments</span><span class="card-icon commitment-icon" aria-hidden="true">↻</span></div>
+              <div class="amount">RM 680</div>
+              <div class="card-foot"><span class="status-dot yellow"></span>4 recurring payments</div>
+              <span class="card-doodle" aria-hidden="true">⌁</span>
+            </article>
+            <article class="summary-card expenses-card">
+              <div class="card-topline"><span>Daily expenses</span><span class="card-icon expenses-icon" aria-hidden="true">✎</span></div>
+              <div class="amount">RM 742</div>
+              <div class="card-foot"><span class="status-dot peach"></span>So far this month</div>
+              <span class="card-doodle" aria-hidden="true">· · ·</span>
+            </article>
+            <article class="summary-card remaining-card">
+              <div class="card-topline"><span>Money remaining</span><span class="card-icon remaining-icon" aria-hidden="true">♡</span></div>
+              <div class="amount">RM 778</div>
+              <div class="card-foot"><span class="status-dot green"></span>For the rest of October</div>
+              <span class="card-doodle" aria-hidden="true">⌒</span>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel spending-panel" aria-labelledby="spending-title">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow small-eyebrow">A QUICK LOOK</p>
+                  <h2 id="spending-title">Spending overview</h2>
+                </div>
+                <button class="text-button" type="button">This month <span aria-hidden="true">⌄</span></button>
+              </div>
+              <div class="spending-content">
+                <div class="chart-wrap" role="img" aria-label="Donut chart showing RM 742 total spending: food RM 326, transport RM 148, lifestyle RM 168, and other RM 100">
+                  <svg class="donut-chart" viewBox="0 0 160 160" aria-hidden="true">
+                    <circle class="donut-track" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment food-segment" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment transport-segment" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment lifestyle-segment" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment other-segment" cx="80" cy="80" r="58" />
+                  </svg>
+                  <div class="chart-center"><strong>RM 742</strong><span>spent so far</span></div>
+                </div>
+                <div class="legend-list">
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot food"></i>Food & drinks</span><strong>RM 326</strong></div>
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot transport"></i>Transport</span><strong>RM 148</strong></div>
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot lifestyle"></i>Lifestyle</span><strong>RM 168</strong></div>
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot other"></i>Other</span><strong>RM 100</strong></div>
+                </div>
+              </div>
+              <div class="journal-tip"><span aria-hidden="true">✎</span> A teh tarik here and there adds up — but there’s room to enjoy it.</div>
+            </section>
+
+            <section class="panel payments-panel" aria-labelledby="payments-title">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow small-eyebrow">COMING UP</p>
+                  <h2 id="payments-title">Upcoming payments</h2>
+                </div>
+                <a class="small-link" href="#dashboard">View all <span aria-hidden="true">→</span></a>
+              </div>
+              <div class="payment-list">
+                <article class="payment-row">
+                  <div class="payment-date"><strong>05</strong><span>NOV</span></div>
+                  <div class="payment-details"><strong>Phone plan</strong><span>Monthly bill</span></div>
+                  <strong class="payment-amount">RM 58</strong>
+                </article>
+                <article class="payment-row">
+                  <div class="payment-date date-peach"><strong>08</strong><span>NOV</span></div>
+                  <div class="payment-details"><strong>Course materials</strong><span>Pay-in-3 · 2 of 3</span></div>
+                  <strong class="payment-amount">RM 45</strong>
+                </article>
+                <article class="payment-row">
+                  <div class="payment-date date-lavender"><strong>12</strong><span>NOV</span></div>
+                  <div class="payment-details"><strong>Headphones</strong><span>Pay-in-4 · 3 of 4</span></div>
+                  <strong class="payment-amount">RM 72</strong>
+                </article>
+              </div>
+              <div class="payment-total"><span>Due in the next 14 days</span><strong>RM 175</strong></div>
+            </section>
+          </div>
+
+          <section class="panel breakdown-panel" aria-labelledby="breakdown-title">
+            <div class="panel-heading breakdown-heading">
+              <div>
+                <p class="eyebrow small-eyebrow">THE REGULARS</p>
+                <h2 id="breakdown-title">BNPL & bill breakdown</h2>
+              </div>
+              <span class="breakdown-caption">Your monthly commitments at a glance</span>
+            </div>
+            <div class="commitment-list">
+              <div class="commitment-item"><span class="commitment-symbol phone-symbol">▯</span><span class="commitment-name">Phone plan</span><span class="commitment-type">Bill</span><span class="commitment-value">RM 58<span>/mo</span></span></div>
+              <div class="commitment-item"><span class="commitment-symbol laptop-symbol">⌘</span><span class="commitment-name">Laptop</span><span class="commitment-type">Pay-in-4</span><span class="commitment-value">RM 220<span>/mo</span></span></div>
+              <div class="commitment-item"><span class="commitment-symbol bag-symbol">♡</span><span class="commitment-name">Everyday bag</span><span class="commitment-type">Pay-in-3</span><span class="commitment-value">RM 150<span>/mo</span></span></div>
+              <div class="commitment-item"><span class="commitment-symbol wifi-symbol">⌁</span><span class="commitment-name">Wi-Fi share</span><span class="commitment-type">Bill</span><span class="commitment-value">RM 252<span>/mo</span></span></div>
+            </div>
+          </section>
+          <p class="sample-disclaimer">Sample student budget for preview only · No real financial information is used.</p>
+        </section>
+
+        <section class="page" id="simulator" data-page-panel="simulator" aria-labelledby="simulator-title" hidden>
+          <div class="welcome-row page-intro">
+            <div>
+              <p class="eyebrow">PAUSE BEFORE THE CHECKOUT <span class="eyebrow-star">✳</span></p>
+              <h1 id="simulator-title">Is it a <span class="hand-underline">boleh buy?</span></h1>
+              <p class="welcome-copy">A little space to think through a purchase before you tap.</p>
+            </div>
+            <div class="sticker sticker-yellow"><span aria-hidden="true">✦</span><br />No judgement,<br />just clarity.</div>
+          </div>
+          <div class="simulator-layout">
+            <section class="panel form-panel" aria-labelledby="purchase-form-title">
+              <p class="eyebrow small-eyebrow">LET’S THINK IT THROUGH</p>
+              <h2 id="purchase-form-title">What are you eyeing?</h2>
+              <p class="section-copy">Add a few details to see how this purchase might fit into your month.</p>
+              <form class="purchase-form">
+                <label for="item-name">What do you want to buy?</label>
+                <input id="item-name" name="item-name" type="text" placeholder="e.g. New headphones" />
+                <label for="item-price">Price (RM)</label>
+                <div class="input-with-prefix"><span>RM</span><input id="item-price" name="item-price" type="number" min="0" placeholder="e.g. 299" /></div>
+                <label for="instalment-period">Instalment period</label>
+                <select id="instalment-period" name="instalment-period">
+                  <option value="">Choose a period</option>
+                  <option>Pay in full</option>
+                  <option>3 months</option>
+                  <option>6 months</option>
+                  <option>12 months</option>
+                </select>
+                <button class="primary-button" type="button" disabled>See the impact <span aria-hidden="true">→</span></button>
+                <p class="form-note"><span aria-hidden="true">✳</span> This preview doesn’t save anything you enter.</p>
+              </form>
+            </section>
+            <div class="simulator-results">
+              <section class="panel result-panel">
+                <div class="result-heading"><span class="result-icon" aria-hidden="true">◷</span><div><p class="eyebrow small-eyebrow">A</p><h2>Purchase impact</h2></div></div>
+                <p class="placeholder-copy">Your monthly instalment and budget impact will appear here.</p>
+                <div class="placeholder-line"><span>Monthly instalment</span><strong>RM —</strong></div>
+                <div class="placeholder-line"><span>Money remaining</span><strong>RM —</strong></div>
+              </section>
+              <section class="panel result-panel translator-panel">
+                <div class="result-heading"><span class="result-icon peach-result" aria-hidden="true">♡</span><div><p class="eyebrow small-eyebrow">B</p><h2>Real cost translator</h2></div></div>
+                <p class="placeholder-copy">See what the price could mean in bowls of mixed rice, bubble teas or LRT trips.</p>
+                <div class="comparison-chips"><span>🍚 Mixed rice</span><span>🧋 Bubble tea</span><span>🚆 Transit trips</span></div>
+              </section>
+              <section class="panel result-panel compare-panel">
+                <div class="result-heading"><span class="result-icon lavender-result" aria-hidden="true">↔</span><div><p class="eyebrow small-eyebrow">C</p><h2>Buy vs. don’t buy</h2></div></div>
+                <p class="placeholder-copy">Compare what your remaining money and savings could look like over time.</p>
+                <div class="compare-preview"><div><span>If you buy</span><strong>RM — left</strong></div><div><span>If you wait</span><strong>RM — left</strong></div></div>
+              </section>
+            </div>
+          </div>
+          <p class="sample-disclaimer">A thoughtful prompt, not financial advice. Calculations are not available in this preview.</p>
+        </section>
+
+        <section class="page" id="scam-checker" data-page-panel="scam-checker" aria-labelledby="scam-title" hidden>
+          <div class="welcome-row page-intro">
+            <div>
+              <p class="eyebrow">WHEN SOMETHING FEELS OFF <span class="eyebrow-star">✳</span></p>
+              <h1 id="scam-title">Let’s look a little <span class="hand-underline">closer.</span></h1>
+              <p class="welcome-copy">Spot the signs, ask questions, and take your time before you reply.</p>
+            </div>
+            <div class="sticker sticker-lavender"><span aria-hidden="true">♡</span><br />Trust your<br />gut feeling.</div>
+          </div>
+          <div class="scam-layout">
+            <section class="panel scam-form-panel" aria-labelledby="scam-form-title">
+              <div class="scam-panel-top">
+                <div>
+                  <p class="eyebrow small-eyebrow">A SECOND PAIR OF EYES</p>
+                  <h2 id="scam-form-title">What did they send you?</h2>
+                  <p class="section-copy">Paste a message, investment offer or job ad that doesn’t feel quite right.</p>
+                </div>
+                <span class="message-doodle" aria-hidden="true">✉</span>
+              </div>
+              <label class="sr-only" for="suspicious-message">Suspicious message or offer</label>
+              <textarea id="suspicious-message" placeholder="Paste the message or offer here…"></textarea>
+              <div class="scam-form-footer">
+                <span><span aria-hidden="true">🔒</span> Preview only — don’t include personal details.</span>
+                <button class="primary-button" type="button" disabled>Check for red flags <span aria-hidden="true">→</span></button>
+              </div>
+            </section>
+            <aside class="panel safety-panel">
+              <span class="safety-badge" aria-hidden="true">✳</span>
+              <p class="eyebrow small-eyebrow">A GENTLE REMINDER</p>
+              <h2>Pause. Verify.<br />Then decide.</h2>
+              <p>Be extra careful if an offer promises guaranteed returns, pressures you to act fast, or asks you to pay upfront.</p>
+              <div class="safety-note">A checker can help you think — but it can’t guarantee that something is safe or a scam.</div>
+            </aside>
+          </div>
+          <section class="panel red-flags-panel" aria-labelledby="red-flags-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow small-eyebrow">A FEW THINGS TO NOTICE</p><h2 id="red-flags-title">Common red flags</h2></div>
+              <span class="breakdown-caption">When in doubt, verify independently.</span>
+            </div>
+            <div class="red-flag-grid">
+              <article class="red-flag"><span aria-hidden="true">⏱</span><div><strong>Urgency & pressure</strong><p>“Act now or lose your chance.”</p></div></article>
+              <article class="red-flag"><span aria-hidden="true">✧</span><div><strong>Guaranteed returns</strong><p>Big rewards with “zero risk”.</p></div></article>
+              <article class="red-flag"><span aria-hidden="true">↗</span><div><strong>Pay first, earn later</strong><p>Unexpected fees to unlock a job or prize.</p></div></article>
+            </div>
+          </section>
+          <p class="sample-disclaimer">This is an educational preview, not a guarantee or substitute for checking with official sources.</p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
