@@ -69,6 +69,7 @@
           <div class="breadcrumb"><span>My space</span><span class="breadcrumb-slash">/</span><strong id="page-breadcrumb">My Money Dashboard</strong></div>
           <div class="topbar-date"><span aria-hidden="true">☼</span> Saturday, 31 October</div>
         </header>
+        <p class="data-notice" id="data-notice" role="status" aria-live="polite" hidden></p>
 
         <section class="page is-visible" id="dashboard" data-page-panel="dashboard" aria-labelledby="dashboard-title">
           <div class="welcome-row">
@@ -87,26 +88,29 @@
           <div class="summary-grid">
             <article class="summary-card income-card">
               <div class="card-topline"><span>Monthly income</span><span class="card-icon income-icon" aria-hidden="true">↗</span></div>
-              <div class="amount">RM 2,200</div>
-              <div class="card-foot"><span class="status-dot green"></span>Allowance + part-time</div>
+              <div class="amount" data-summary="income">RM 0</div>
+              <div class="card-foot"><span class="status-dot green"></span><span data-summary-note="income">No income sources yet</span></div>
+              <div class="card-actions"><button type="button" class="mini-action" data-add="income">+ Add source</button><button type="button" class="mini-action" data-manage="income">Manage</button></div>
               <span class="card-doodle" aria-hidden="true">✳</span>
             </article>
             <article class="summary-card commitment-card">
               <div class="card-topline"><span>Monthly commitments</span><span class="card-icon commitment-icon" aria-hidden="true">↻</span></div>
-              <div class="amount">RM 680</div>
-              <div class="card-foot"><span class="status-dot yellow"></span>4 recurring payments</div>
+              <div class="amount" data-summary="commitments">RM 0</div>
+              <div class="card-foot"><span class="status-dot yellow"></span><span data-summary-note="commitments">No commitments yet</span></div>
+              <div class="card-actions"><button type="button" class="mini-action" data-add="commitment">+ Add</button><button type="button" class="mini-action" data-manage="commitment">Manage</button></div>
               <span class="card-doodle" aria-hidden="true">⌁</span>
             </article>
             <article class="summary-card expenses-card">
               <div class="card-topline"><span>Daily expenses</span><span class="card-icon expenses-icon" aria-hidden="true">✎</span></div>
-              <div class="amount">RM 742</div>
-              <div class="card-foot"><span class="status-dot peach"></span>So far this month</div>
+              <div class="amount" data-summary="expenses">RM 0</div>
+              <div class="card-foot"><span class="status-dot peach"></span><span data-summary-note="expenses">No expenses this month</span></div>
+              <div class="card-actions"><button type="button" class="mini-action" data-add="expense">+ Add</button><button type="button" class="mini-action" data-manage="expense">Manage</button></div>
               <span class="card-doodle" aria-hidden="true">· · ·</span>
             </article>
             <article class="summary-card remaining-card">
               <div class="card-topline"><span>Money remaining</span><span class="card-icon remaining-icon" aria-hidden="true">♡</span></div>
-              <div class="amount">RM 778</div>
-              <div class="card-foot"><span class="status-dot green"></span>For the rest of October</div>
+              <div class="amount" data-summary="remaining">RM 0</div>
+              <div class="card-foot"><span class="status-dot green"></span><span data-summary-note="remaining">After commitments & expenses</span></div>
               <span class="card-doodle" aria-hidden="true">⌒</span>
             </article>
           </div>
@@ -118,27 +122,25 @@
                   <p class="eyebrow small-eyebrow">A QUICK LOOK</p>
                   <h2 id="spending-title">Spending overview</h2>
                 </div>
-                <button class="text-button" type="button">This month <span aria-hidden="true">⌄</span></button>
+                <span class="text-button" data-current-month></span>
               </div>
               <div class="spending-content">
-                <div class="chart-wrap" role="img" aria-label="Donut chart showing RM 742 total spending: food RM 326, transport RM 148, lifestyle RM 168, and other RM 100">
+                <div class="chart-wrap" role="img">
                   <svg class="donut-chart" viewBox="0 0 160 160" aria-hidden="true">
                     <circle class="donut-track" cx="80" cy="80" r="58" />
-                    <circle class="donut-segment food-segment" cx="80" cy="80" r="58" />
-                    <circle class="donut-segment transport-segment" cx="80" cy="80" r="58" />
-                    <circle class="donut-segment lifestyle-segment" cx="80" cy="80" r="58" />
-                    <circle class="donut-segment other-segment" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment commitment-segment" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment expense-segment" cx="80" cy="80" r="58" />
+                    <circle class="donut-segment remaining-segment" cx="80" cy="80" r="58" />
                   </svg>
-                  <div class="chart-center"><strong>RM 742</strong><span>spent so far</span></div>
+                  <div class="chart-center"><strong data-chart-total>RM 0</strong><span>of monthly budget</span></div>
                 </div>
-                <div class="legend-list">
-                  <div class="legend-row"><span class="legend-label"><i class="legend-dot food"></i>Food & drinks</span><strong>RM 326</strong></div>
-                  <div class="legend-row"><span class="legend-label"><i class="legend-dot transport"></i>Transport</span><strong>RM 148</strong></div>
-                  <div class="legend-row"><span class="legend-label"><i class="legend-dot lifestyle"></i>Lifestyle</span><strong>RM 168</strong></div>
-                  <div class="legend-row"><span class="legend-label"><i class="legend-dot other"></i>Other</span><strong>RM 100</strong></div>
+                <div class="legend-list" data-spending-legend>
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot commitment"></i>Commitments</span><strong>RM 0</strong></div>
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot expense"></i>Daily expenses</span><strong>RM 0</strong></div>
+                  <div class="legend-row"><span class="legend-label"><i class="legend-dot remaining"></i>Remaining</span><strong>RM 0</strong></div>
                 </div>
               </div>
-              <div class="journal-tip"><span aria-hidden="true">✎</span> A teh tarik here and there adds up — but there’s room to enjoy it.</div>
+              <div class="journal-tip" data-spending-tip><span aria-hidden="true">✎</span> Add your income and spending to see your monthly picture.</div>
             </section>
 
             <section class="panel payments-panel" aria-labelledby="payments-title">
@@ -147,26 +149,10 @@
                   <p class="eyebrow small-eyebrow">COMING UP</p>
                   <h2 id="payments-title">Upcoming payments</h2>
                 </div>
-                <a class="small-link" href="#dashboard">View all <span aria-hidden="true">→</span></a>
+                <div class="panel-actions"><button class="small-link" type="button" data-add="payment">+ Add payment</button><button class="small-link" type="button" data-manage="payment">Manage <span aria-hidden="true">→</span></button></div>
               </div>
-              <div class="payment-list">
-                <article class="payment-row">
-                  <div class="payment-date"><strong>05</strong><span>NOV</span></div>
-                  <div class="payment-details"><strong>Phone plan</strong><span>Monthly bill</span></div>
-                  <strong class="payment-amount">RM 58</strong>
-                </article>
-                <article class="payment-row">
-                  <div class="payment-date date-peach"><strong>08</strong><span>NOV</span></div>
-                  <div class="payment-details"><strong>Course materials</strong><span>Pay-in-3 · 2 of 3</span></div>
-                  <strong class="payment-amount">RM 45</strong>
-                </article>
-                <article class="payment-row">
-                  <div class="payment-date date-lavender"><strong>12</strong><span>NOV</span></div>
-                  <div class="payment-details"><strong>Headphones</strong><span>Pay-in-4 · 3 of 4</span></div>
-                  <strong class="payment-amount">RM 72</strong>
-                </article>
-              </div>
-              <div class="payment-total"><span>Due in the next 14 days</span><strong>RM 175</strong></div>
+              <div class="payment-list" data-record-list="payment"></div>
+              <div class="payment-total"><span data-payment-total-label>Due in the next 14 days</span><strong data-payment-total>RM 0</strong></div>
             </section>
           </div>
 
@@ -178,14 +164,13 @@
               </div>
               <span class="breakdown-caption">Your monthly commitments at a glance</span>
             </div>
-            <div class="commitment-list">
-              <div class="commitment-item"><span class="commitment-symbol phone-symbol">▯</span><span class="commitment-name">Phone plan</span><span class="commitment-type">Bill</span><span class="commitment-value">RM 58<span>/mo</span></span></div>
-              <div class="commitment-item"><span class="commitment-symbol laptop-symbol">⌘</span><span class="commitment-name">Laptop</span><span class="commitment-type">Pay-in-4</span><span class="commitment-value">RM 220<span>/mo</span></span></div>
-              <div class="commitment-item"><span class="commitment-symbol bag-symbol">♡</span><span class="commitment-name">Everyday bag</span><span class="commitment-type">Pay-in-3</span><span class="commitment-value">RM 150<span>/mo</span></span></div>
-              <div class="commitment-item"><span class="commitment-symbol wifi-symbol">⌁</span><span class="commitment-name">Wi-Fi share</span><span class="commitment-type">Bill</span><span class="commitment-value">RM 252<span>/mo</span></span></div>
+            <div class="commitment-list" data-record-list="commitment"></div>
+            <div class="breakdown-actions">
+              <button type="button" class="small-link" data-add="commitment">+ Add commitment</button>
+              <button type="button" class="small-link" data-manage="commitment">Manage commitments <span aria-hidden="true">→</span></button>
             </div>
           </section>
-          <p class="sample-disclaimer">Sample student budget for preview only · No real financial information is used.</p>
+          <p class="sample-disclaimer">Saved only in this browser · Use sample figures as a guide, or replace them with your own.</p>
         </section>
 
         <section class="page" id="simulator" data-page-panel="simulator" aria-labelledby="simulator-title" hidden>
@@ -290,5 +275,11 @@
         </section>
       </main>
     </div>
+    <dialog class="record-dialog" id="record-dialog" aria-labelledby="dialog-title">
+      <div class="dialog-shell">
+        <button class="dialog-close" type="button" aria-label="Close dialog" data-close-dialog>×</button>
+        <div id="dialog-content"></div>
+      </div>
+    </dialog>
   </body>
 </html>
