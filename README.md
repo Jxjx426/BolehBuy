@@ -21,9 +21,9 @@ No packages, account, database or API are required.
 - `js/app.js` loads saved records and initializes the app modules.
 - `js/navigation.js` handles the three page views and mobile navigation.
 - `js/storage.js` validates, initializes, loads and saves Local Storage data.
-- `js/calculations.js` provides reusable, data-in/data-out currency, date and budget calculations.
+- `js/calculations.js` provides reusable, data-in/data-out currency, date, budget and purchase-comparison calculations.
 - `js/dashboard.js` renders the Dashboard and manages its financial records.
-- `js/simulator.js` calculates a purchase's current-month impact from the shared Dashboard records.
+- `js/simulator.js` renders the purchase impact, buy-versus-wait comparison and editable real-cost examples.
 
 ## Dashboard features
 
@@ -55,6 +55,13 @@ All records use one data shape in Local Storage under `bolehbuy-finances`:
 
 Amounts are stored as RM values. The Dashboard and Simulator read this same record collection.
 
+## Simulator features
+
+- Compare Pay in Full with instalments of 3, 6, 12 or 24 months using the Dashboard's existing income, commitment and expense records.
+- Compare estimated remaining money when buying and waiting. Potential savings reflect payments avoided and do not assume the user will actually save them.
+- Translate the purchase price into approximate mixed-rice meals, bubble tea cups and public transport trips. Example reference prices are editable and are saved separately under `bolehbuy-cost-translator-prices`; finance records remain unchanged.
+- Translator reference prices are examples, not fixed market prices. Instalment estimates assume 0% interest and no fees.
+
 ## Current scope
 
-The Dashboard tracker and the Simulator's purchase impact and spending assessment are functional. The Simulator's real-cost comparisons and buy-versus-wait comparison, along with Scam Checker analysis, are not implemented yet.
+The Dashboard tracker and the Simulator's purchase impact, spending assessment, buy-versus-wait comparison and real-cost translator are functional. Scam Checker analysis is not implemented yet.

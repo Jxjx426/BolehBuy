@@ -109,6 +109,45 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
   };
 }
 
+export function calculatePurchaseComparison(impact) {
+  const isPayFull = impact.paymentMethod === "pay-full";
+  const monthlyPaymentAvoided = impact.monthlyInstallment;
+  const potentialSavings = (months) => isPayFull
+    ? impact.itemPrice
+    : Math.round(monthlyPaymentAvoided * Math.min(months, impact.duration) * 100) / 100;
+
+  return {
+    itemName: impact.itemName,
+    itemPrice: impact.itemPrice,
+    paymentMethod: impact.paymentMethod,
+    duration: impact.duration,
+    monthlyInstallment: monthlyPaymentAvoided,
+    buyRemaining: impact.estimatedRemaining,
+    dontBuyRemaining: impact.remaining,
+    moneyRetained: isPayFull ? impact.itemPrice : monthlyPaymentAvoided,
+    moneyRetainedType: isPayFull ? "one-time" : "per month",
+    monthlyPaymentsAvoided: isPayFull ? 0 : monthlyPaymentAvoided,
+    potentialSavings3Months: potentialSavings(3),
+    potentialSavings6Months: potentialSavings(6),
+    hasCompleteFinancialRecords: impact.hasIncomeRecords && impact.hasCommitmentRecords,
+  };
+}
+
+export function calculateCostEquivalents(price, referencePrices) {
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new RangeError("Purchase price must be greater than zero.");
+  }
+
+  return Object.fromEntries(
+    Object.entries(referencePrices).map(([category, referencePrice]) => {
+      if (!Number.isFinite(referencePrice) || referencePrice <= 0) {
+        throw new RangeError("Reference prices must be greater than zero.");
+      }
+      return [category, Math.round(price / referencePrice)];
+    }),
+  );
+}
+
 export function byDateAscending(a, b) {
   return a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name);
 }

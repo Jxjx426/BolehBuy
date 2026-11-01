@@ -1,6 +1,12 @@
 import { dateAfterDays, isValidDate } from "./calculations.js";
 
 export const STORAGE_KEY = "bolehbuy-finances";
+export const TRANSLATOR_PRICES_KEY = "bolehbuy-cost-translator-prices";
+export const DEFAULT_TRANSLATOR_PRICES = Object.freeze({
+  rice: 20,
+  bubbleTea: 15,
+  transport: 4,
+});
 const STORAGE_VERSION = 1;
 const RECORD_TYPES = ["income", "commitment", "expense", "payment"];
 
@@ -11,6 +17,36 @@ export const CATEGORIES = {
 };
 
 let currentRecords = [];
+
+function validTranslatorPrices(value) {
+  return value && Object.keys(DEFAULT_TRANSLATOR_PRICES).every((key) =>
+    Number.isFinite(value[key]) && value[key] > 0
+  );
+}
+
+export function loadTranslatorPrices() {
+  try {
+    const saved = window.localStorage.getItem(TRANSLATOR_PRICES_KEY);
+    if (saved === null) return { prices: { ...DEFAULT_TRANSLATOR_PRICES }, error: null };
+    const prices = JSON.parse(saved);
+    if (!validTranslatorPrices(prices)) {
+      throw new Error("Saved reference prices are invalid.");
+    }
+    return { prices, error: null };
+  } catch (error) {
+    return {
+      prices: { ...DEFAULT_TRANSLATOR_PRICES },
+      error: `Custom reference prices could not be loaded. Default examples are shown. ${error.message}`,
+    };
+  }
+}
+
+export function saveTranslatorPrices(prices) {
+  if (!validTranslatorPrices(prices)) {
+    throw new Error("All example reference prices must be greater than RM 0.");
+  }
+  window.localStorage.setItem(TRANSLATOR_PRICES_KEY, JSON.stringify(prices));
+}
 
 function makeSampleRecords() {
   const currentDate = new Date();

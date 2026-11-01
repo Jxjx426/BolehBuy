@@ -242,13 +242,57 @@
                   <p class="data-limitation" id="impact-data-limitation" hidden></p>
                 </div>
               </section>
-              <section class="panel result-panel translator-panel">
-                <div class="result-heading"><span class="result-icon peach-result" aria-hidden="true">♡</span><div><p class="eyebrow small-eyebrow">B</p><h2>Real cost translator</h2></div></div>
-                <p class="placeholder-copy step-three-placeholder">Coming in Step 3B: relatable everyday cost comparisons.</p>
+              <section class="panel result-panel compare-panel" id="simulator-comparison" aria-labelledby="comparison-title" hidden>
+                <div class="result-heading"><span class="result-icon lavender-result" aria-hidden="true">↔</span><div><p class="eyebrow small-eyebrow">A MOMENT TO COMPARE</p><h2 id="comparison-title">Should You Buy It?</h2></div></div>
+                <p class="comparison-explanation" id="comparison-explanation"></p>
+                <div class="decision-comparison">
+                  <article class="decision-card decision-buy" aria-labelledby="buy-card-title">
+                    <p class="decision-label" id="buy-card-title">BUY IT <span aria-hidden="true">✦</span></p>
+                    <h3 id="comparison-buy-name"></h3>
+                    <div class="decision-amount-row"><span>Purchase price</span><strong id="comparison-buy-price"></strong></div>
+                    <div class="decision-amount-row" id="comparison-installment-row"><span>Monthly instalment</span><strong id="comparison-installment"></strong></div>
+                    <div class="decision-amount-row decision-remaining"><span id="comparison-buy-remaining-label">Estimated remaining money</span><strong id="comparison-buy-remaining"></strong></div>
+                    <p class="decision-note" id="comparison-buy-note"></p>
+                  </article>
+                  <article class="decision-card decision-wait" aria-labelledby="wait-card-title">
+                    <p class="decision-label" id="wait-card-title">DON’T BUY IT <span aria-hidden="true">♡</span></p>
+                    <h3>Keep your options open</h3>
+                    <div class="decision-amount-row"><span id="comparison-retained-label">Money retained</span><strong id="comparison-retained"></strong></div>
+                    <div class="decision-amount-row" id="comparison-avoided-row"><span>Monthly payment avoided</span><strong id="comparison-avoided"></strong></div>
+                    <div class="decision-amount-row decision-remaining"><span id="comparison-wait-remaining-label">Estimated remaining money</span><strong id="comparison-wait-remaining"></strong></div>
+                    <div class="potential-savings">
+                      <p class="potential-savings-title">Potential savings <span>if you set the money aside</span></p>
+                      <div class="decision-amount-row"><span>After 3 months</span><strong id="comparison-savings-3"></strong></div>
+                      <div class="decision-amount-row"><span>After 6 months</span><strong id="comparison-savings-6"></strong></div>
+                    </div>
+                    <p class="decision-note" id="comparison-wait-note"></p>
+                  </article>
+                </div>
+                <p class="data-limitation" id="comparison-data-limitation" hidden></p>
               </section>
-              <section class="panel result-panel compare-panel">
-                <div class="result-heading"><span class="result-icon lavender-result" aria-hidden="true">↔</span><div><p class="eyebrow small-eyebrow">C</p><h2>Buy vs. don’t buy</h2></div></div>
-                <p class="placeholder-copy step-three-placeholder">Coming in Step 3B: comparing what happens if you buy or wait.</p>
+              <section class="panel result-panel translator-panel" id="cost-translator" aria-labelledby="translator-title" hidden>
+                <div class="result-heading"><span class="result-icon peach-result" aria-hidden="true">♡</span><div><p class="eyebrow small-eyebrow">A DIFFERENT WAY TO SEE IT</p><h2 id="translator-title">Real cost translator</h2></div></div>
+                <p class="translator-intro">Your purchase price is about… <strong id="translator-purchase-price"></strong></p>
+                <div class="translator-list">
+                  <div class="translator-row" data-translator-row="rice">
+                    <span class="translator-emoji" aria-hidden="true">🍚</span><div class="translator-detail"><strong>Bowls of mixed rice</strong><span>nasi campur meals</span></div>
+                    <strong class="translator-equivalent" data-equivalent="rice"></strong>
+                    <label class="reference-price"><span>Example price per meal</span><span class="input-with-prefix"><span>RM</span><input type="number" min="0.01" step="0.01" inputmode="decimal" data-reference-price="rice" aria-label="Example price per mixed rice meal" /></span></label>
+                  </div>
+                  <div class="translator-row" data-translator-row="bubbleTea">
+                    <span class="translator-emoji" aria-hidden="true">🧋</span><div class="translator-detail"><strong>Cups of bubble tea</strong><span>one cup each</span></div>
+                    <strong class="translator-equivalent" data-equivalent="bubbleTea"></strong>
+                    <label class="reference-price"><span>Example price per cup</span><span class="input-with-prefix"><span>RM</span><input type="number" min="0.01" step="0.01" inputmode="decimal" data-reference-price="bubbleTea" aria-label="Example price per bubble tea cup" /></span></label>
+                  </div>
+                  <div class="translator-row" data-translator-row="transport">
+                    <span class="translator-emoji" aria-hidden="true">🚆</span><div class="translator-detail"><strong>Public transport trips</strong><span>one trip each</span></div>
+                    <strong class="translator-equivalent" data-equivalent="transport"></strong>
+                    <label class="reference-price"><span>Example price per trip</span><span class="input-with-prefix"><span>RM</span><input type="number" min="0.01" step="0.01" inputmode="decimal" data-reference-price="transport" aria-label="Example price per public transport trip" /></span></label>
+                  </div>
+                </div>
+                <p class="translator-footnote">These are approximate, illustrative comparisons—not fixed Malaysian market prices. Edit the example prices to match your own experience.</p>
+                <p class="translator-error" id="translator-error" role="alert" hidden></p>
+                <p class="translator-storage-note" id="translator-storage-note" role="status" hidden></p>
               </section>
             </div>
           </div>
