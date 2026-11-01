@@ -1,18 +1,17 @@
 # BolehBuy?
 
-A static, browser-based financial companion for Malaysian students and young adults.
+A browser-based financial companion for Malaysian students and young adults.
 
 ## Run the website
 
-Open `index.html` in a browser, or start a local server from this folder:
+Install dependencies and start the frontend and API on one local origin:
 
 ```powershell
-py -m http.server 8000
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:8000`.
-
-No packages, account, database or API are required.
+Open `http://localhost:3000`. Scam Checker analysis is still a placeholder.
 
 ## Project structure
 
@@ -24,6 +23,8 @@ No packages, account, database or API are required.
 - `js/calculations.js` provides reusable, data-in/data-out currency, date, budget and purchase-comparison calculations.
 - `js/dashboard.js` renders the Dashboard and manages its financial records.
 - `js/simulator.js` renders the purchase impact, buy-versus-wait comparison and editable real-cost examples.
+- `js/ai-advisor.js` sends the calculated purchase summary to the same-origin API and renders validated advisor insights.
+- `server.js` serves the website and validates requests before calling the Gemini API.
 
 ## Dashboard features
 
@@ -62,6 +63,21 @@ Amounts are stored as RM values. The Dashboard and Simulator read this same reco
 - Translate the purchase price into approximate mixed-rice meals, bubble tea cups and public transport trips. Example reference prices are editable and are saved separately under `bolehbuy-cost-translator-prices`; finance records remain unchanged.
 - Translator reference prices are examples, not fixed market prices. Instalment estimates assume 0% interest and no fees.
 
+## Configure the AI Purchase Advisor
+
+1. Copy `.env.example` to `.env`.
+2. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey) and add it as `GEMINI_API_KEY` in `.env`. Do not paste the key into the website or commit `.env`.
+3. Optionally set `GEMINI_MODEL` to another supported model and `PORT` to a different local port. The default model is `gemini-3.1-flash-lite`.
+4. Restart `npm run dev`, calculate a purchase in the Simulator, and click **Analyse My Purchase**.
+
+If no key is configured, the advisor displays setup instructions, disables analysis, and does not return a mock analysis. The server sends only the item name and concise calculated values needed for analysis; it does not send dashboard records, transaction descriptions, or Local Storage data. Gemini's response is validated as structured JSON before the browser renders it. Do not include sensitive information in an item name.
+
+Run the backend tests with:
+
+```powershell
+npm test
+```
+
 ## Current scope
 
-The Dashboard tracker and the Simulator's purchase impact, spending assessment, buy-versus-wait comparison and real-cost translator are functional. Scam Checker analysis is not implemented yet.
+The Dashboard tracker and the Simulator's purchase impact, spending assessment, buy-versus-wait comparison, real-cost translator and Gemini-backed AI Purchase Advisor are implemented. The AI Advisor requires a user-provided API key; no live Gemini request is made until one is configured. Scam Checker analysis is not implemented yet.

@@ -10,6 +10,11 @@ import {
   loadTranslatorPrices,
   saveTranslatorPrices,
 } from "./storage.js";
+import {
+  initializeAIAdvisor,
+  invalidateAIAdvice,
+  markAIAdviceReady,
+} from "./ai-advisor.js";
 
 const form = document.querySelector("#simulator-form");
 const itemNameInput = document.querySelector("#item-name");
@@ -107,6 +112,47 @@ function renderImpact(impact) {
 
   renderComparison(calculatePurchaseComparison(impact));
   renderTranslator(impact.itemPrice);
+  markAIAdviceReady();
+}
+
+function createAdvisorPayload(impact) {
+  const purchaseComparison = calculatePurchaseComparison(impact);
+  const recordsComplete = impact.hasIncomeRecords && impact.hasCommitmentRecords;
+
+  return {
+    purchase: {
+      itemName: impact.itemName,
+      itemPrice: impact.itemPrice,
+      paymentMethod: impact.paymentMethod,
+      duration: impact.duration,
+      monthlyInstallment: impact.monthlyInstallment,
+    },
+    finances: {
+      monthlyIncome: impact.hasIncomeRecords ? impact.income : null,
+      existingMonthlyCommitments: impact.hasCommitmentRecords ? impact.commitments : null,
+      currentMonthExpenses: impact.expenses,
+      remainingBeforePurchase: recordsComplete ? impact.remaining : null,
+      newMonthlyCommitments: recordsComplete ? impact.newCommitments : null,
+      estimatedRemainingAfterPurchase: recordsComplete ? impact.estimatedRemaining : null,
+      recordsComplete,
+      missingRecords: [
+        ...(!impact.hasIncomeRecords ? ["monthly income"] : []),
+        ...(!impact.hasCommitmentRecords ? ["monthly commitments"] : []),
+      ],
+    },
+    spendingAssessment: {
+      title: impact.assessment.title,
+      reason: impact.assessment.reason,
+    },
+    comparison: {
+      buyRemaining: recordsComplete ? purchaseComparison.buyRemaining : null,
+      dontBuyRemaining: recordsComplete ? purchaseComparison.dontBuyRemaining : null,
+      moneyRetained: purchaseComparison.moneyRetained,
+      moneyRetainedUnit: purchaseComparison.moneyRetainedType,
+      potentialSavings3Months: purchaseComparison.potentialSavings3Months,
+      potentialSavings6Months: purchaseComparison.potentialSavings6Months,
+    },
+  };
 }
 
 function renderComparison(comparisonData) {
@@ -182,6 +228,8 @@ function renderTranslator(price) {
 }
 
 export function initializeSimulator() {
+  initializeAIAdvisor(() => currentPurchaseImpact ? createAdvisorPayload(currentPurchaseImpact) : null);
+
   const savedPrices = loadTranslatorPrices();
   referencePrices = savedPrices.prices;
   for (const input of referencePriceInputs) {
@@ -200,8 +248,14 @@ export function initializeSimulator() {
   }
 
   paymentMethodInput.addEventListener("change", updateDurationVisibility);
-  form.addEventListener("input", clearValidationError);
-  form.addEventListener("change", clearValidationError);
+  form.addEventListener("input", () => {
+    clearValidationError();
+    invalidateAIAdvice();
+  });
+  form.addEventListener("change", () => {
+    clearValidationError();
+    invalidateAIAdvice();
+  });
   for (const input of referencePriceInputs) {
     input.addEventListener("input", () => {
       const valueText = input.value.trim();

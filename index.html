@@ -294,6 +294,27 @@
                 <p class="translator-error" id="translator-error" role="alert" hidden></p>
                 <p class="translator-storage-note" id="translator-storage-note" role="status" hidden></p>
               </section>
+              <section class="panel result-panel advisor-panel" id="ai-advisor" aria-labelledby="advisor-title" hidden>
+                <div class="result-heading">
+                  <span class="result-icon advisor-result-icon" aria-hidden="true">✳</span>
+                  <div><p class="eyebrow small-eyebrow">A THOUGHTFUL SECOND OPINION</p><h2 id="advisor-title">AI Purchase Advisor</h2></div>
+                </div>
+                <p class="advisor-subtitle">Get a second opinion before you tap buy.</p>
+                <p class="advisor-description">The advisor reviews your purchase details and the budget figures and comparison already calculated above. It does not recalculate your finances.</p>
+                <p class="advisor-privacy-note">Only your item name and a short calculated financial summary are sent to Gemini. No transaction descriptions, account details, or Local Storage records are shared.</p>
+                <button class="primary-button advisor-button" type="button" id="analyse-purchase" disabled>Analyse My Purchase <span aria-hidden="true">→</span></button>
+                <p class="advisor-status" id="advisor-status" role="status" aria-live="polite"></p>
+                <div class="advisor-loading" id="advisor-loading" role="status" aria-live="polite" hidden>
+                  <span class="advisor-spinner" aria-hidden="true"></span>
+                  <span>Taking a closer look at your numbers…</span>
+                </div>
+                <div class="advisor-error" id="advisor-error" role="alert" hidden></div>
+                <button class="secondary-button advisor-retry" type="button" id="retry-analysis" hidden>Retry analysis</button>
+                <div class="advisor-result" id="advisor-result" aria-live="polite" hidden>
+                  <div class="advisor-result-grid" id="advisor-result-content"></div>
+                </div>
+                <p class="advisor-disclaimer">AI-generated insights are for educational purposes only and are not financial advice.</p>
+              </section>
             </div>
           </div>
           <p class="sample-disclaimer">A budgeting estimate, not financial advice or a guarantee. Actual costs and payment-provider terms may differ.</p>

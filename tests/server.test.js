@@ -1,0 +1,243 @@
+import assert from "node:assert/strict";
+import { afterEach, test } from "node:test";
+import { createApp } from "../server.js";
+
+const validPayload = {
+  purchase: {
+    itemName: "Laptop",
+    itemPrice: 1200,
+    paymentMethod: "installment",
+    duration: 6,
+    monthlyInstallment: 200,
+  },
+  finances: {
+    monthlyIncome: 2200,
+    existingMonthlyCommitments: 680,
+    currentMonthExpenses: 742,
+    remainingBeforePurchase: 778,
+    newMonthlyCommitments: 880,
+    estimatedRemainingAfterPurchase: 578,
+    recordsComplete: true,
+    missingRecords: [],
+  },
+  spendingAssessment: {
+    title: "Be Careful",
+    reason: "Your estimated remaining money is below 20% of your income.",
+  },
+  comparison: {
+    buyRemaining: 578,
+    dontBuyRemaining: 778,
+    moneyRetained: 200,
+    moneyRetainedUnit: "per month",
+    potentialSavings3Months: 600,
+    potentialSavings6Months: 1200,
+  },
+};
+
+const validAnalysis = {
+  overallOpinion: "This purchase has a noticeable monthly impact based on the figures provided.",
+  keyReasons: ["The instalment is RM 200 each month.", "Your existing commitments are RM 680.", "The estimate leaves RM 578 after the purchase."],
+  financialRisks: ["Other unrecorded spending could reduce your available money."],
+  suggestions: ["Check whether the monthly instalment fits your regular budget.", "Compare the total cost with a few alternatives."],
+  questionsToConsider: ["Would waiting for a month change your priorities?", "Could an unexpected expense affect this plan?"],
+};
+
+let server;
+afterEach(async () => {
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+    server = null;
+  }
+});
+
+async function startServer(options) {
+  server = createApp(options).listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  return `http://127.0.0.1:${server.address().port}`;
+}
+
+test("missing API key gives a clear setup response without contacting Gemini", async () => {
+  let called = false;
+  const origin = await startServer({
+    apiKey: "",
+    aiClient: { models: { generateContent: async () => { called = true; } } },
+  });
+
+  const response = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validPayload),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.error.code, "NOT_CONFIGURED");
+  assert.match(body.error.message, /\.env/);
+  assert.equal(called, false);
+});
+
+test("invalid and oversized requests are rejected before reaching Gemini", async () => {
+  let called = false;
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { called = true; } } },
+  });
+
+  const invalid = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...validPayload, privateData: "must not pass validation" }),
+  });
+  const oversized = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ padding: "x".repeat(9000) }),
+  });
+
+  assert.equal(invalid.status, 400);
+  assert.equal((await invalid.json()).error.code, "INVALID_REQUEST");
+  assert.equal(oversized.status, 413);
+  assert.equal((await oversized.json()).error.code, "REQUEST_TOO_LARGE");
+  assert.equal(called, false);
+});
+
+test("valid summary reaches Gemini with structured output and returns validated JSON", async () => {
+  let request;
+  const origin = await startServer({
+    apiKey: "test-key",
+    model: "test-flash",
+    aiClient: {
+      models: {
+        generateContent: async (value) => {
+          request = value;
+          return { text: JSON.stringify(validAnalysis) };
+        },
+      },
+    },
+  });
+
+  const response = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validPayload),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.analysis, validAnalysis);
+  assert.equal(request.model, "test-flash");
+  assert.equal(request.config.responseMimeType, "application/json");
+  assert.match(request.config.systemInstruction, /source of truth/);
+  assert.equal(request.config.httpOptions.timeout, 20_000);
+  assert.equal(request.config.httpOptions.retryOptions.attempts, 1);
+  assert.equal(request.contents, JSON.stringify(validPayload));
+  assert.doesNotMatch(JSON.stringify(body), /test-key/);
+});
+
+test("incomplete records stay null in the request rather than being presented as zero", async () => {
+  const incompletePayload = structuredClone(validPayload);
+  incompletePayload.finances.monthlyIncome = null;
+  incompletePayload.finances.remainingBeforePurchase = null;
+  incompletePayload.finances.newMonthlyCommitments = null;
+  incompletePayload.finances.estimatedRemainingAfterPurchase = null;
+  incompletePayload.finances.recordsComplete = false;
+  incompletePayload.finances.missingRecords = ["monthly income"];
+  incompletePayload.spendingAssessment = {
+    title: "Insufficient Data",
+    reason: "Add records for monthly income for a more complete assessment.",
+  };
+  incompletePayload.comparison.buyRemaining = null;
+  incompletePayload.comparison.dontBuyRemaining = null;
+  let received;
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: {
+      models: {
+        generateContent: async (request) => {
+          received = JSON.parse(request.contents);
+          return { text: JSON.stringify(validAnalysis) };
+        },
+      },
+    },
+  });
+
+  const response = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(incompletePayload),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(received.finances.monthlyIncome, null);
+  assert.deepEqual(received.finances.missingRecords, ["monthly income"]);
+  assert.equal(received.comparison.buyRemaining, null);
+});
+
+test("malformed Gemini output and provider rate limits get safe errors", async () => {
+  const badResponseOrigin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => ({ text: '{"overallOpinion":"Missing arrays"}' }) } },
+  });
+  const badResponse = await fetch(`${badResponseOrigin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validPayload),
+  });
+  assert.equal(badResponse.status, 502);
+  assert.equal((await badResponse.json()).error.code, "INVALID_AI_RESPONSE");
+
+  await new Promise((resolve) => server.close(resolve));
+  server = null;
+  const rateLimitOrigin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { throw Object.assign(new Error("private provider details"), { status: 429 }); } } },
+  });
+  const rateLimited = await fetch(`${rateLimitOrigin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validPayload),
+  });
+  const body = await rateLimited.json();
+  assert.equal(rateLimited.status, 429);
+  assert.equal(body.error.code, "RATE_LIMITED");
+  assert.doesNotMatch(JSON.stringify(body), /private provider details/);
+});
+
+test("Gemini authentication and timeout errors are mapped to safe client messages", async () => {
+  const unauthorizedOrigin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { throw Object.assign(new Error("secret upstream body"), { status: 401 }); } } },
+  });
+  const unauthorized = await fetch(`${unauthorizedOrigin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validPayload),
+  });
+  assert.equal(unauthorized.status, 503);
+  assert.equal((await unauthorized.json()).error.code, "GEMINI_CONFIGURATION");
+
+  await new Promise((resolve) => server.close(resolve));
+  server = null;
+  const timeoutOrigin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { throw Object.assign(new Error("private timeout details"), { name: "TimeoutError" }); } } },
+  });
+  const timeout = await fetch(`${timeoutOrigin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validPayload),
+  });
+  const body = await timeout.json();
+  assert.equal(timeout.status, 504);
+  assert.equal(body.error.code, "GEMINI_TIMEOUT");
+  assert.doesNotMatch(JSON.stringify(body), /private timeout details/);
+});
+
+test("server serves only the app entry, styles and frontend modules", async () => {
+  const origin = await startServer({ apiKey: "" });
+  assert.equal((await fetch(`${origin}/`)).status, 200);
+  assert.equal((await fetch(`${origin}/styles.css`)).status, 200);
+  assert.equal((await fetch(`${origin}/js/ai-advisor.js`)).status, 200);
+  assert.equal((await fetch(`${origin}/server.js`)).status, 404);
+  assert.equal((await fetch(`${origin}/.env.example`)).status, 404);
+});
