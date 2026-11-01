@@ -23,6 +23,7 @@ No packages, account, database or API are required.
 - `js/storage.js` validates, initializes, loads and saves Local Storage data.
 - `js/calculations.js` provides reusable, data-in/data-out currency, date and budget calculations.
 - `js/dashboard.js` renders the Dashboard and manages its financial records.
+- `js/simulator.js` calculates a purchase's current-month impact from the shared Dashboard records.
 
 ## Dashboard features
 
@@ -52,8 +53,8 @@ All records use one data shape in Local Storage under `bolehbuy-finances`:
 }
 ```
 
-Amounts are stored as RM values. This shared record collection is available for future Simulator work.
+Amounts are stored as RM values. The Dashboard and Simulator read this same record collection.
 
 ## Current scope
 
-The Dashboard tracker is functional. The Simulator and Scam Checker remain visual placeholders; their calculations and checking features are not implemented yet.
+The Dashboard tracker and the Simulator's purchase impact and spending assessment are functional. The Simulator's real-cost comparisons and buy-versus-wait comparison, along with Scam Checker analysis, are not implemented yet.

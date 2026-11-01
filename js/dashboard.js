@@ -17,6 +17,7 @@ const notice = document.querySelector("#data-notice");
 
 let records = [];
 let storageReady = true;
+let selectedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 function setNotice(message, isError = false) {
   notice.textContent = message;
@@ -57,7 +58,8 @@ function renderSummary(totals) {
 
   const incomeSources = records.filter((record) => record.type === "income");
   const commitments = records.filter((record) => record.type === "commitment");
-  const expenses = currentMonthExpenses(records);
+  const expenses = currentMonthExpenses(records, selectedMonth);
+  const selectedMonthName = selectedMonth.toLocaleDateString("en-MY", { month: "long" });
   document.querySelector('[data-summary-note="income"]').textContent = incomeSources.length
     ? incomeSources.length <= 2
       ? incomeSources.map((record) => record.name).join(" + ")
@@ -67,8 +69,8 @@ function renderSummary(totals) {
     ? `${commitments.length} recurring ${commitments.length === 1 ? "payment" : "payments"}`
     : "No commitments yet";
   document.querySelector('[data-summary-note="expenses"]').textContent = expenses.length
-    ? `${expenses.length} ${expenses.length === 1 ? "record" : "records"} this month`
-    : "No expenses this month";
+    ? `${expenses.length} ${expenses.length === 1 ? "record" : "records"} in ${selectedMonthName}`
+    : `No expenses in ${selectedMonthName}`;
 
   const remainingNote = document.querySelector('[data-summary-note="remaining"]');
   const remainingDot = remainingNote.previousElementSibling;
@@ -125,17 +127,78 @@ function renderSpendingOverview(totals) {
   const tip = document.querySelector("[data-spending-tip]");
   tip.replaceChildren(createElement("span", "", "✎"));
   let message;
-  if (!records.some((record) => ["income", "commitment", "expense"].includes(record.type))) {
+  const monthExpenses = currentMonthExpenses(records, selectedMonth);
+  const hasIncomeOrCommitments = records.some(
+    (record) => record.type === "income" || record.type === "commitment",
+  );
+  if (!hasIncomeOrCommitments && monthExpenses.length === 0) {
     message = "Add your income and spending to see your monthly picture.";
   } else if (totals.remaining < 0) {
     message = `Recorded commitments and expenses are ${currency(-totals.remaining)} more than your income.`;
   } else if (totals.remaining === 0) {
     message = "Your monthly income is fully allocated.";
   } else {
-    message = `${currency(totals.remaining)} remains after this month’s commitments and expenses.`;
+    const monthName = selectedMonth.toLocaleDateString("en-MY", { month: "long" });
+    message = `${currency(totals.remaining)} remains after commitments and expenses in ${monthName}.`;
   }
   tip.append(document.createTextNode(` ${message}`));
   tip.classList.toggle("is-empty", chartTotal === 0);
+}
+
+function monthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthFromKey(key) {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(year, month - 1, 1);
+}
+
+function renderMonthPicker() {
+  const picker = document.querySelector("#month-picker");
+  const label = document.querySelector("#selected-month-label");
+  const menu = document.querySelector("#month-menu");
+  const selectedKey = monthKey(selectedMonth);
+  const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const currentKey = monthKey(currentMonth);
+  const defaultHistoryStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 11, 1);
+  const expenseDates = records
+    .filter((record) => record.type === "expense" && isValidDate(record.date))
+    .map((record) => record.date.slice(0, 7))
+    .filter((key) => key <= currentKey);
+  const earliestKey = expenseDates.length
+    ? expenseDates.reduce((earliest, key) => key < earliest ? key : earliest, monthKey(defaultHistoryStart))
+    : monthKey(defaultHistoryStart);
+  const selectedLabel = selectedMonth.toLocaleDateString("en-MY", { month: "long", year: "numeric" });
+
+  label.textContent = selectedLabel;
+  picker.setAttribute("aria-label", `Showing ${selectedLabel}`);
+  menu.replaceChildren();
+
+  const menuHeading = createElement("p", "month-menu-heading", "AVAILABLE MONTHS");
+  menu.append(menuHeading);
+
+  for (let date = currentMonth; monthKey(date) >= earliestKey; date = new Date(date.getFullYear(), date.getMonth() - 1, 1)) {
+    const key = monthKey(date);
+    const option = createElement(
+      "button",
+      `month-option${key === selectedKey ? " is-selected" : ""}`,
+      date.toLocaleDateString("en-MY", { month: "long", year: "numeric" }),
+    );
+    option.type = "button";
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(key === selectedKey));
+    option.dataset.month = key;
+    if (key > currentKey) option.disabled = true;
+    if (key === selectedKey) {
+      const marker = createElement("span", "month-option-marker", "✓");
+      marker.setAttribute("aria-hidden", "true");
+      option.append(marker);
+    }
+    menu.append(option);
+  }
+
+  menu.append(createElement("p", "month-menu-note", "Future months aren’t available yet."));
 }
 
 function renderCommitmentBreakdown() {
@@ -221,13 +284,16 @@ function renderPayments() {
 }
 
 function renderDashboard() {
-  const totals = getTotals(records);
+  const totals = getTotals(records, selectedMonth);
   renderSummary(totals);
   renderSpendingOverview(totals);
+  renderMonthPicker();
   renderCommitmentBreakdown();
   renderPayments();
   document.querySelector("[data-current-month]").textContent =
-    new Date().toLocaleDateString("en-MY", { month: "long", year: "numeric" });
+    selectedMonth.toLocaleDateString("en-MY", { month: "long", year: "numeric" });
+  document.querySelector("#dashboard-month-copy").textContent =
+    selectedMonth.toLocaleDateString("en-MY", { month: "long" });
   document.querySelector(".topbar-date").lastChild.textContent = ` ${new Date().toLocaleDateString("en-MY", {
     weekday: "long",
     day: "numeric",
@@ -452,6 +518,40 @@ export function initializeDashboard(initialState) {
   storageReady = initialState.writable;
 
   if (initialState.error) setNotice(initialState.error, true);
+
+  const monthPicker = document.querySelector("#month-picker");
+  const monthMenu = document.querySelector("#month-menu");
+
+  monthPicker.addEventListener("click", () => {
+    const isExpanded = monthPicker.getAttribute("aria-expanded") === "true";
+    if (!isExpanded) renderMonthPicker();
+    monthMenu.hidden = isExpanded;
+    monthPicker.setAttribute("aria-expanded", String(!isExpanded));
+  });
+
+  monthMenu.addEventListener("click", (event) => {
+    const option = event.target.closest("[data-month]");
+    if (!option || option.disabled) return;
+    selectedMonth = monthFromKey(option.dataset.month);
+    monthMenu.hidden = true;
+    monthPicker.setAttribute("aria-expanded", "false");
+    renderDashboard();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".month-picker-wrap") && !monthMenu.hidden) {
+      monthMenu.hidden = true;
+      monthPicker.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !monthMenu.hidden) {
+      monthMenu.hidden = true;
+      monthPicker.setAttribute("aria-expanded", "false");
+      monthPicker.focus();
+    }
+  });
 
   function openDialog() {
     if (!dialog.open) dialog.showModal();

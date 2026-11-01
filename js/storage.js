@@ -10,6 +10,8 @@ export const CATEGORIES = {
   payment: ["BNPL", "Bills", "Subscriptions", "Other"],
 };
 
+let currentRecords = [];
+
 function makeSampleRecords() {
   const currentDate = new Date();
   const year = currentDate.getFullYear();
@@ -79,18 +81,20 @@ export function loadRecords() {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (saved !== null) {
-      return { records: validateSavedRecords(JSON.parse(saved)), writable: true, error: null };
+      currentRecords = validateSavedRecords(JSON.parse(saved));
+      return { records: currentRecords, writable: true, error: null };
     }
 
-    const records = makeSampleRecords();
+    currentRecords = makeSampleRecords();
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ version: STORAGE_VERSION, records }),
+      JSON.stringify({ version: STORAGE_VERSION, records: currentRecords }),
     );
-    return { records, writable: true, error: null };
+    return { records: currentRecords, writable: true, error: null };
   } catch (error) {
+    currentRecords = makeSampleRecords();
     return {
-      records: makeSampleRecords(),
+      records: currentRecords,
       writable: false,
       error: `Saved data could not be loaded or browser storage is unavailable. The sample preview is shown; changes will not be saved. ${error.message}`,
     };
@@ -102,4 +106,9 @@ export function saveRecords(records) {
     STORAGE_KEY,
     JSON.stringify({ version: STORAGE_VERSION, records }),
   );
+  currentRecords = records;
+}
+
+export function getRecords() {
+  return currentRecords;
 }

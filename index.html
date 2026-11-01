@@ -76,13 +76,16 @@
             <div>
               <p class="eyebrow">YOUR MONEY, AT A GLANCE <span class="eyebrow-star">✳</span></p>
               <h1 id="dashboard-title">A little check-in, <span class="hand-underline">a lot of clarity.</span></h1>
-              <p class="welcome-copy">Here’s how your October is looking. You’ve got this!</p>
+              <p class="welcome-copy">Here’s how your <span id="dashboard-month-copy">current month</span> is looking. You’ve got this!</p>
             </div>
-            <div class="month-picker" aria-label="Showing October 2026">
-              <span class="calendar-icon" aria-hidden="true">▦</span>
-              October 2026
-              <span class="picker-chevron" aria-hidden="true">⌄</span>
-            </div>
+              <div class="month-picker-wrap">
+                <button class="month-picker" id="month-picker" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="month-menu">
+                  <span class="calendar-icon" aria-hidden="true">▦</span>
+                  <span id="selected-month-label"></span>
+                  <span class="picker-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <div class="month-menu" id="month-menu" role="listbox" aria-label="Select dashboard month" hidden></div>
+              </div>
           </div>
 
           <div class="summary-grid">
@@ -187,43 +190,69 @@
               <p class="eyebrow small-eyebrow">LET’S THINK IT THROUGH</p>
               <h2 id="purchase-form-title">What are you eyeing?</h2>
               <p class="section-copy">Add a few details to see how this purchase might fit into your month.</p>
-              <form class="purchase-form">
+              <form class="purchase-form" id="simulator-form" novalidate>
                 <label for="item-name">What do you want to buy?</label>
-                <input id="item-name" name="item-name" type="text" placeholder="e.g. New headphones" />
+                <input id="item-name" name="item-name" type="text" maxlength="80" placeholder="e.g. New headphones" required />
                 <label for="item-price">Price (RM)</label>
-                <div class="input-with-prefix"><span>RM</span><input id="item-price" name="item-price" type="number" min="0" placeholder="e.g. 299" /></div>
-                <label for="instalment-period">Instalment period</label>
-                <select id="instalment-period" name="instalment-period">
-                  <option value="">Choose a period</option>
-                  <option>Pay in full</option>
-                  <option>3 months</option>
-                  <option>6 months</option>
-                  <option>12 months</option>
+                <div class="input-with-prefix"><span>RM</span><input id="item-price" name="item-price" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 299" required /></div>
+                <label for="payment-method">Payment method</label>
+                <select id="payment-method" name="payment-method" required>
+                  <option value="pay-full">Pay in Full</option>
+                  <option value="installment">Instalment</option>
                 </select>
-                <button class="primary-button" type="button" disabled>See the impact <span aria-hidden="true">→</span></button>
-                <p class="form-note"><span aria-hidden="true">✳</span> This preview doesn’t save anything you enter.</p>
+                <div id="duration-field" class="duration-field" hidden>
+                  <label for="instalment-duration">Instalment duration</label>
+                  <select id="instalment-duration" name="instalment-duration">
+                    <option value="">Choose a duration</option>
+                    <option value="3">3 months</option>
+                    <option value="6">6 months</option>
+                    <option value="12">12 months</option>
+                    <option value="24">24 months</option>
+                  </select>
+                </div>
+                <p class="simulator-form-error" id="simulator-form-error" role="alert" hidden></p>
+                <button class="primary-button" type="submit">Calculate Impact <span aria-hidden="true">→</span></button>
+                <p class="form-note"><span aria-hidden="true">✳</span> Instalments are estimated at 0% interest with no additional fees. Actual provider terms may differ. Your entries aren’t saved.</p>
               </form>
             </section>
             <div class="simulator-results">
-              <section class="panel result-panel">
-                <div class="result-heading"><span class="result-icon" aria-hidden="true">◷</span><div><p class="eyebrow small-eyebrow">A</p><h2>Purchase impact</h2></div></div>
-                <p class="placeholder-copy">Your monthly instalment and budget impact will appear here.</p>
-                <div class="placeholder-line"><span>Monthly instalment</span><strong>RM —</strong></div>
-                <div class="placeholder-line"><span>Money remaining</span><strong>RM —</strong></div>
+              <section class="panel result-panel" aria-live="polite" aria-labelledby="purchase-impact-title">
+                <div class="result-heading"><span class="result-icon" aria-hidden="true">◷</span><div><p class="eyebrow small-eyebrow">PURCHASE IMPACT</p><h2 id="purchase-impact-title">Your monthly picture</h2></div></div>
+                <p class="placeholder-copy" id="simulator-empty">Enter a purchase to see how it could affect your monthly money.</p>
+                <div class="impact-result" id="simulator-result" hidden>
+                  <div class="purchase-summary">
+                    <span>Purchase</span><strong id="impact-item-name"></strong>
+                    <span>Total price</span><strong id="impact-item-price"></strong>
+                    <span>Payment method</span><strong id="impact-payment-method"></strong>
+                    <span id="impact-duration-label" hidden>Duration</span><strong id="impact-duration" hidden></strong>
+                  </div>
+                  <p class="impact-period-note" id="impact-period-note"></p>
+                  <div class="impact-overview">
+                    <div class="impact-row"><span>Monthly income</span><strong id="impact-income"></strong></div>
+                    <div class="impact-row"><span>Existing monthly commitments</span><strong id="impact-existing"></strong></div>
+                    <div class="impact-row"><span>Monthly instalment</span><strong id="impact-installment"></strong></div>
+                    <div class="impact-row"><span>New monthly commitments</span><strong id="impact-new-commitments"></strong></div>
+                    <div class="impact-row"><span>Current-month daily expenses</span><strong id="impact-expenses"></strong></div>
+                    <div class="impact-row impact-remaining"><span id="impact-remaining-label">Estimated remaining this month</span><strong id="impact-remaining"></strong></div>
+                  </div>
+                  <div class="assessment" id="impact-assessment">
+                    <strong id="assessment-title"></strong>
+                    <p id="assessment-reason"></p>
+                  </div>
+                  <p class="data-limitation" id="impact-data-limitation" hidden></p>
+                </div>
               </section>
               <section class="panel result-panel translator-panel">
                 <div class="result-heading"><span class="result-icon peach-result" aria-hidden="true">♡</span><div><p class="eyebrow small-eyebrow">B</p><h2>Real cost translator</h2></div></div>
-                <p class="placeholder-copy">See what the price could mean in bowls of mixed rice, bubble teas or LRT trips.</p>
-                <div class="comparison-chips"><span>🍚 Mixed rice</span><span>🧋 Bubble tea</span><span>🚆 Transit trips</span></div>
+                <p class="placeholder-copy step-three-placeholder">Coming in Step 3B: relatable everyday cost comparisons.</p>
               </section>
               <section class="panel result-panel compare-panel">
                 <div class="result-heading"><span class="result-icon lavender-result" aria-hidden="true">↔</span><div><p class="eyebrow small-eyebrow">C</p><h2>Buy vs. don’t buy</h2></div></div>
-                <p class="placeholder-copy">Compare what your remaining money and savings could look like over time.</p>
-                <div class="compare-preview"><div><span>If you buy</span><strong>RM — left</strong></div><div><span>If you wait</span><strong>RM — left</strong></div></div>
+                <p class="placeholder-copy step-three-placeholder">Coming in Step 3B: comparing what happens if you buy or wait.</p>
               </section>
             </div>
           </div>
-          <p class="sample-disclaimer">A thoughtful prompt, not financial advice. Calculations are not available in this preview.</p>
+          <p class="sample-disclaimer">A budgeting estimate, not financial advice or a guarantee. Actual costs and payment-provider terms may differ.</p>
         </section>
 
         <section class="page" id="scam-checker" data-page-panel="scam-checker" aria-labelledby="scam-title" hidden>
