@@ -22,8 +22,8 @@ Open `http://localhost:3000`. Scam Checker analysis is still a placeholder.
 - `js/storage.js` validates, initializes, loads and saves Local Storage data.
 - `js/calculations.js` provides reusable, data-in/data-out currency, date, budget and purchase-comparison calculations.
 - `js/dashboard.js` renders the Dashboard and manages its financial records.
-- `js/simulator.js` renders the purchase impact, buy-versus-wait comparison and editable real-cost examples.
-- `js/ai-advisor.js` sends the calculated purchase summary to the same-origin API and renders validated advisor insights.
+- `js/simulator.js` renders the purchase impact, buy-versus-wait comparison and fixed illustrative real-cost examples.
+- `js/ai-advisor.js` renders Gemini insights when available and uses a clearly labelled local analysis fallback otherwise.
 - `server.js` serves the website and validates requests before calling the Gemini API.
 
 ## Dashboard features
@@ -60,8 +60,8 @@ Amounts are stored as RM values. The Dashboard and Simulator read this same reco
 
 - Compare Pay in Full with instalments of 3, 6, 12 or 24 months using the Dashboard's existing income, commitment and expense records.
 - Compare estimated remaining money when buying and waiting. Potential savings reflect payments avoided and do not assume the user will actually save them.
-- Translate the purchase price into approximate mixed-rice meals, bubble tea cups and public transport trips. Example reference prices are editable and are saved separately under `bolehbuy-cost-translator-prices`; finance records remain unchanged.
-- Translator reference prices are examples, not fixed market prices. Instalment estimates assume 0% interest and no fees.
+- Translate the purchase price into approximate bowls of mixed rice (RM 12), cups of bubble tea (RM 15) and RapidKL rides (RM 4).
+- Translator reference prices are illustrative examples, not fixed market prices. Instalment estimates assume 0% interest and no fees.
 
 ## Configure the AI Purchase Advisor
 
@@ -70,7 +70,7 @@ Amounts are stored as RM values. The Dashboard and Simulator read this same reco
 3. Optionally set `GEMINI_MODEL` to another supported model and `PORT` to a different local port. The default model is `gemini-3.1-flash-lite`.
 4. Restart `npm run dev`, calculate a purchase in the Simulator, and click **Analyse My Purchase**.
 
-If no key is configured, the advisor displays setup instructions, disables analysis, and does not return a mock analysis. The server sends only the item name and concise calculated values needed for analysis; it does not send dashboard records, transaction descriptions, or Local Storage data. Gemini's response is validated as structured JSON before the browser renders it. Do not include sensitive information in an item name.
+If no key is configured or Gemini is unavailable, the button still works and shows a clearly labelled local analysis based on the Simulator's calculated figures, including a critical-thinking question. The local analysis does not claim to be Gemini output. When Gemini is available, the server sends only the item name and concise calculated values needed for analysis; it does not send dashboard records, transaction descriptions, or Local Storage data. Gemini's response is validated as structured JSON before the browser renders it. Do not include sensitive information in an item name.
 
 Run the backend tests with:
 
@@ -80,4 +80,4 @@ npm test
 
 ## Current scope
 
-The Dashboard tracker and the Simulator's purchase impact, spending assessment, buy-versus-wait comparison, real-cost translator and Gemini-backed AI Purchase Advisor are implemented. The AI Advisor requires a user-provided API key; no live Gemini request is made until one is configured. Scam Checker analysis is not implemented yet.
+The Dashboard tracker and the Simulator's purchase impact, spending assessment, buy-versus-wait comparison, real-cost translator and AI Purchase Advisor are implemented. Live Gemini analysis requires a user-provided API key; a local calculated analysis is available when Gemini is not configured or unavailable. Scam Checker analysis is not implemented yet.

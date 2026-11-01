@@ -3,7 +3,7 @@ import { dateAfterDays, isValidDate } from "./calculations.js";
 export const STORAGE_KEY = "bolehbuy-finances";
 export const TRANSLATOR_PRICES_KEY = "bolehbuy-cost-translator-prices";
 export const DEFAULT_TRANSLATOR_PRICES = Object.freeze({
-  rice: 20,
+  rice: 12,
   bubbleTea: 15,
   transport: 4,
 });

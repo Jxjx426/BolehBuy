@@ -316,7 +316,6 @@ function typeRecords(type) {
 
 function renderManager(type) {
   dialogContent.replaceChildren();
-  const heading = createElement("p", "eyebrow small-eyebrow", "YOUR MONEY, YOUR WAY");
   const title = createElement("h2", "", `Manage ${type === "income" ? "income" : `${type}s`}`);
   title.id = "dialog-title";
   const intro = createElement("p", "dialog-intro", `Add, update or remove your ${type === "income" ? "income sources" : `${type} records`}.`);
@@ -370,7 +369,7 @@ function renderManager(type) {
       });
   }
 
-  dialogContent.append(heading, title, intro, toolbar, list);
+  dialogContent.append(title, intro, toolbar, list);
 }
 
 function addFormField(form, labelText, name, type, options = {}) {
@@ -411,7 +410,6 @@ function addFormField(form, labelText, name, type, options = {}) {
 
 function renderRecordForm(type, record = null) {
   dialogContent.replaceChildren();
-  const heading = createElement("p", "eyebrow small-eyebrow", record ? "MAKE AN UPDATE" : "A NEW RECORD");
   const title = createElement("h2", "", `${record ? "Edit" : "Add"} ${categoryLabel(type).toLowerCase()}`);
   title.id = "dialog-title";
   const intro = createElement("p", "dialog-intro", "Your entries stay in this browser and can be changed any time.");
@@ -505,7 +503,7 @@ function renderRecordForm(type, record = null) {
     }
   });
 
-  dialogContent.append(heading, title, intro, form);
+  dialogContent.append(title, intro, form);
   form.insertBefore(formError, form.querySelector(".form-actions"));
   form.addEventListener("input", () => {
     formError.hidden = true;
