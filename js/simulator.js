@@ -1,3 +1,4 @@
+import { addSimulatorPurchase } from "./dashboard.js";
 import {
   calculateCostEquivalents,
   calculatePurchaseComparison,
@@ -20,17 +21,31 @@ const itemPriceInput = document.querySelector("#item-price");
 const paymentMethodInput = document.querySelector("#payment-method");
 const durationField = document.querySelector("#duration-field");
 const durationInput = document.querySelector("#instalment-duration");
+const instalmentCostFields = document.querySelector("#instalment-cost-fields");
+const interestRateInput = document.querySelector("#annual-interest-rate");
+const additionalFeesInput = document.querySelector("#additional-fees");
 const formError = document.querySelector("#simulator-form-error");
 const emptyResult = document.querySelector("#simulator-empty");
 const result = document.querySelector("#simulator-result");
 const comparison = document.querySelector("#simulator-comparison");
 const translator = document.querySelector("#cost-translator");
+const purchaseDecision = document.querySelector("#purchase-decision");
+const openPurchaseConfirmationButton = document.querySelector("#open-purchase-confirmation");
+const purchaseConfirmation = document.querySelector("#purchase-confirmation");
+const purchaseSuccess = document.querySelector("#purchase-success");
+const purchaseSaveError = document.querySelector("#purchase-save-error");
+const confirmAddPurchaseButton = document.querySelector("#confirm-add-purchase");
+const cancelAddPurchaseButton = document.querySelector("#cancel-add-purchase");
 let currentPurchaseImpact = null;
+let hasCalculatedPurchase = false;
+let pendingPurchase = null;
+let purchaseSubmissionId = null;
+let purchaseAdded = false;
 
-function showValidationError(message) {
+function showValidationError(message, input = itemNameInput) {
   formError.textContent = message;
   formError.hidden = false;
-  (message.includes("duration") ? durationInput : itemNameInput).focus();
+  input.focus();
 }
 
 function clearValidationError() {
@@ -65,7 +80,10 @@ function renderImpact(impact) {
   setText("#assessment-title", assessmentLabels[impact.assessment.level] || impact.assessment.title);
 
   renderComparison(calculatePurchaseComparison(impact));
-  renderTranslator(impact.itemPrice);
+  renderTranslator(impact.totalPurchaseCost);
+  purchaseDecision.hidden = false;
+  purchaseSubmissionId ??= window.crypto?.randomUUID?.() ||
+    `purchase-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   markAIAdviceReady();
 }
 
@@ -79,6 +97,10 @@ function createAdvisorPayload(impact) {
       itemPrice: impact.itemPrice,
       paymentMethod: impact.paymentMethod,
       duration: impact.duration,
+      annualFlatInterestRate: impact.annualFlatInterestRate,
+      additionalFees: impact.additionalFees,
+      totalInterest: impact.totalInterest,
+      totalPurchaseCost: impact.totalPurchaseCost,
       monthlyInstallment: impact.monthlyInstallment,
     },
     finances: {
@@ -97,6 +119,7 @@ function createAdvisorPayload(impact) {
     spendingAssessment: {
       title: impact.assessment.title,
       reason: impact.assessment.reason,
+      level: impact.assessment.level,
     },
     comparison: {
       buyRemaining: recordsComplete ? purchaseComparison.buyRemaining : null,
@@ -114,7 +137,8 @@ function renderComparison(comparisonData) {
   const isPayFull = comparisonData.paymentMethod === "pay-full";
   const remainingIsComplete = comparisonData.hasCompleteFinancialRecords;
   setText("#comparison-buy-name", comparisonData.itemName);
-  setText("#comparison-buy-price", currency(comparisonData.itemPrice));
+  setText("#comparison-buy-price", currency(comparisonData.totalPurchaseCost));
+  setText("#comparison-buy-price-label", isPayFull ? "Purchase price" : "Total instalment cost");
   setText("#comparison-buy-remaining", remainingIsComplete ? currency(comparisonData.buyRemaining) : "Incomplete estimate");
   setText("#comparison-retained-label", isPayFull ? "One-time money kept" : "Monthly payment avoided");
   setText("#comparison-retained", isPayFull
@@ -136,6 +160,144 @@ function renderTranslator(price) {
   }
 }
 
+function readPurchaseDetails() {
+  const name = itemNameInput.value.trim();
+  if (!name) return { error: "Add the item name so you can recognise this purchase.", input: itemNameInput };
+  if (name.length > 80) return { error: "Keep the item name to 80 characters or fewer.", input: itemNameInput };
+
+  const priceText = itemPriceInput.value.trim();
+  const price = Number(priceText);
+  if (!/^\d+(?:\.\d{1,2})?$/.test(priceText) || !Number.isFinite(price) || price <= 0) {
+    return { error: "Enter a price greater than RM 0, using up to two decimal places.", input: itemPriceInput };
+  }
+
+  const paymentMethod = paymentMethodInput.value;
+  const duration = Number(durationInput.value);
+  if (paymentMethod === "installment" && ![3, 6, 12, 24].includes(duration)) {
+    return { error: "Choose an instalment duration to continue.", input: durationInput };
+  }
+
+  let annualFlatInterestRate = 0;
+  let additionalFees = 0;
+  if (paymentMethod === "installment") {
+    const rateText = interestRateInput.value.trim();
+    annualFlatInterestRate = Number(rateText);
+    if (!/^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/.test(rateText) ||
+      !Number.isFinite(annualFlatInterestRate) ||
+      annualFlatInterestRate < 0 ||
+      annualFlatInterestRate > 100) {
+      return { error: "Enter an annual flat interest rate from 0% to 100%, using up to 6 decimal places.", input: interestRateInput };
+    }
+
+    const feeText = additionalFeesInput.value.trim();
+    additionalFees = Number(feeText);
+    if (!/^\d+(?:\.\d{1,2})?$/.test(feeText) ||
+      !Number.isFinite(additionalFees) ||
+      additionalFees < 0 ||
+      additionalFees > 1_000_000) {
+      return { error: "Enter additional fees from RM 0 to RM 1,000,000, using up to two decimal places.", input: additionalFeesInput };
+    }
+  }
+
+  return {
+    purchase: {
+      name,
+      price: Math.round(price * 100) / 100,
+      paymentMethod,
+      duration,
+      annualFlatInterestRate,
+      additionalFees,
+    },
+  };
+}
+
+function hidePurchaseResults() {
+  result.hidden = true;
+  comparison.hidden = true;
+  translator.hidden = true;
+  purchaseDecision.hidden = true;
+  purchaseConfirmation.hidden = true;
+  emptyResult.hidden = false;
+}
+
+function resetPurchaseDecision() {
+  pendingPurchase = null;
+  purchaseSubmissionId = null;
+  purchaseAdded = false;
+  purchaseConfirmation.hidden = true;
+  purchaseSuccess.hidden = true;
+  purchaseSaveError.hidden = true;
+  purchaseSaveError.textContent = "";
+  openPurchaseConfirmationButton.disabled = false;
+  confirmAddPurchaseButton.disabled = false;
+  cancelAddPurchaseButton.disabled = false;
+  document.querySelector("#purchase-decision-button-label").textContent = "I've Decided to Buy";
+}
+
+function openPurchaseConfirmation() {
+  if (!currentPurchaseImpact || purchaseAdded) return;
+  pendingPurchase = { ...currentPurchaseImpact };
+  purchaseSaveError.hidden = true;
+  purchaseSaveError.textContent = "";
+  const isPayFull = pendingPurchase.paymentMethod === "pay-full";
+  setText("#confirm-item-name", pendingPurchase.itemName);
+  setText("#confirm-item-price", currency(pendingPurchase.itemPrice));
+  setText("#confirm-payment-method", isPayFull ? "Pay in Full" : "BNPL / Instalments");
+  document.querySelector("#confirm-duration-row").hidden = isPayFull;
+  document.querySelector("#confirm-total-row").hidden = isPayFull;
+  document.querySelector("#confirm-monthly-row").hidden = isPayFull;
+  document.querySelector("#confirm-interest-row").hidden = isPayFull;
+  document.querySelector("#confirm-fees-row").hidden = isPayFull;
+  document.querySelector("#purchase-duration-note").hidden = isPayFull;
+  if (!isPayFull) {
+    setText("#confirm-duration", `${pendingPurchase.duration} months`);
+    setText("#confirm-total", currency(pendingPurchase.totalPurchaseCost));
+    setText("#confirm-monthly", `${currency(pendingPurchase.monthlyInstallment)} / month`);
+    setText("#confirm-interest", currency(pendingPurchase.totalInterest));
+    setText("#confirm-fees", currency(pendingPurchase.additionalFees));
+    setText("#purchase-destination", "This will be added to your Dashboard under Monthly Commitments (BNPL). Only the monthly instalment is recorded, not the full purchase price.");
+  } else {
+    setText("#purchase-destination", "This will be added to your Dashboard under Daily Expenses, dated today.");
+  }
+  purchaseConfirmation.hidden = false;
+}
+
+function confirmPurchaseAddition() {
+  if (!pendingPurchase || !purchaseSubmissionId || purchaseAdded) return;
+  confirmAddPurchaseButton.disabled = true;
+  cancelAddPurchaseButton.disabled = true;
+
+  const result = addSimulatorPurchase(pendingPurchase, purchaseSubmissionId);
+  if (!result.success) {
+    purchaseSaveError.textContent = result.error || "The purchase could not be saved. Please try again.";
+    purchaseSaveError.hidden = false;
+    confirmAddPurchaseButton.disabled = false;
+    cancelAddPurchaseButton.disabled = false;
+    return;
+  }
+
+  purchaseAdded = true;
+  pendingPurchase = null;
+  purchaseConfirmation.hidden = true;
+  purchaseSuccess.hidden = false;
+  openPurchaseConfirmationButton.disabled = true;
+  document.querySelector("#purchase-decision-button-label").textContent = "Purchase added";
+}
+
+function updateResultsFromForm() {
+  if (!hasCalculatedPurchase) return;
+  const details = readPurchaseDetails();
+  if (details.error) {
+    currentPurchaseImpact = null;
+    hidePurchaseResults();
+    showValidationError(details.error, details.input);
+    return;
+  }
+  clearValidationError();
+  currentPurchaseImpact = calculatePurchaseImpact(getRecords(), details.purchase);
+  renderImpact(currentPurchaseImpact);
+}
+
 export function initializeSimulator() {
   initializeAIAdvisor(() => currentPurchaseImpact ? createAdvisorPayload(currentPurchaseImpact) : null);
 
@@ -143,61 +305,52 @@ export function initializeSimulator() {
     const showDuration = paymentMethodInput.value === "installment";
     durationField.hidden = !showDuration;
     durationInput.required = showDuration;
+    instalmentCostFields.hidden = !showDuration;
+    interestRateInput.required = showDuration;
+    additionalFeesInput.required = showDuration;
+    interestRateInput.disabled = !showDuration;
+    additionalFeesInput.disabled = !showDuration;
   }
 
-  paymentMethodInput.addEventListener("change", updateDurationVisibility);
-  form.addEventListener("input", () => {
+  function onInputChange() {
     clearValidationError();
+    resetPurchaseDecision();
     invalidateAIAdvice();
+    updateResultsFromForm();
+  }
+
+  paymentMethodInput.addEventListener("change", () => {
+    updateDurationVisibility();
+    onInputChange();
   });
-  form.addEventListener("change", () => {
-    clearValidationError();
-    invalidateAIAdvice();
-  });
+  form.addEventListener("input", onInputChange);
+  form.addEventListener("change", onInputChange);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     clearValidationError();
-
-    const name = itemNameInput.value.trim();
-    if (!name) {
-      showValidationError("Add the item name so you can recognise this purchase.");
+    resetPurchaseDecision();
+    const details = readPurchaseDetails();
+    if (details.error) {
+      currentPurchaseImpact = null;
+      hidePurchaseResults();
+      showValidationError(details.error, details.input);
       return;
     }
-    if (name.length > 80) {
-      showValidationError("Keep the item name to 80 characters or fewer.");
-      return;
-    }
-
-    const priceText = itemPriceInput.value.trim();
-    const price = Number(priceText);
-    if (
-      !/^\d+(?:\.\d{1,2})?$/.test(priceText) ||
-      !Number.isFinite(price) ||
-      price <= 0
-    ) {
-      showValidationError("Enter a price greater than RM 0, using up to two decimal places.");
-      return;
-    }
-
-    const paymentMethod = paymentMethodInput.value;
-    const duration = Number(durationInput.value);
-    if (
-      paymentMethod === "installment" &&
-      ![3, 6, 12, 24].includes(duration)
-    ) {
-      showValidationError("Choose an instalment duration to continue.");
-      return;
-    }
-
-    const impact = calculatePurchaseImpact(getRecords(), {
-      name,
-      price: Math.round(price * 100) / 100,
-      paymentMethod,
-      duration,
-    });
+    const impact = calculatePurchaseImpact(getRecords(), details.purchase);
     currentPurchaseImpact = impact;
+    hasCalculatedPurchase = true;
     renderImpact(impact);
   });
+
+  openPurchaseConfirmationButton.addEventListener("click", openPurchaseConfirmation);
+  cancelAddPurchaseButton.addEventListener("click", () => {
+    pendingPurchase = null;
+    purchaseConfirmation.hidden = true;
+    purchaseSaveError.hidden = true;
+    confirmAddPurchaseButton.disabled = false;
+    cancelAddPurchaseButton.disabled = false;
+  });
+  confirmAddPurchaseButton.addEventListener("click", confirmPurchaseAddition);
 
   updateDurationVisibility();
 }

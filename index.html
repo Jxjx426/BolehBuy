@@ -210,9 +210,16 @@
                       <option value="24">24 months</option>
                     </select>
                   </div>
+                  <div id="instalment-cost-fields" class="instalment-cost-fields">
+                    <label for="annual-interest-rate">Annual Flat Interest Rate (%)</label>
+                    <input id="annual-interest-rate" name="annual-interest-rate" type="number" min="0" max="100" step="any" inputmode="decimal" value="0" required />
+                    <label for="additional-fees">Additional Fees (RM)</label>
+                    <div class="input-with-prefix"><span>RM</span><input id="additional-fees" name="additional-fees" type="number" min="0" max="1000000" step="any" inputmode="decimal" value="0" required /></div>
+                    <p class="form-note instalment-estimate-note">Estimates only. Actual interest, fees and repayment methods vary by provider.</p>
+                  </div>
                   <p class="simulator-form-error" id="simulator-form-error" role="alert" hidden></p>
                   <button class="primary-button" type="submit">Calculate Impact <span aria-hidden="true">→</span></button>
-                  <p class="form-note">Instalments are estimates at 0% interest and exclude provider fees. Actual terms may differ.</p>
+                  <p class="form-note">This uses an estimated flat-rate calculation, not a provider’s exact APR or repayment method. Your entries aren’t saved.</p>
                 </form>
               </section>
               <section class="panel result-panel advisor-panel" id="ai-advisor" aria-labelledby="advisor-title">
@@ -227,9 +234,12 @@
                   <span class="advisor-spinner" aria-hidden="true"></span>
                   <span>Taking a closer look at your numbers…</span>
                 </div>
+                <div class="advisor-error" id="advisor-error" role="alert" hidden></div>
+                <button class="secondary-button advisor-retry" type="button" id="retry-analysis" hidden>Retry analysis</button>
                 <div class="advisor-result" id="advisor-result" aria-live="polite" hidden>
                   <div class="advisor-result-grid" id="advisor-result-content"></div>
                 </div>
+                <p class="advisor-disclaimer">AI-generated insights are for educational purposes only and are not financial advice.</p>
               </section>
             </div>
             <div class="simulator-results">
@@ -270,7 +280,7 @@
                   <article class="decision-card decision-buy" aria-labelledby="buy-card-title">
                     <p class="decision-label" id="buy-card-title">Buy It</p>
                     <h3 id="comparison-buy-name"></h3>
-                    <div class="decision-metric"><span>Purchase price</span><strong id="comparison-buy-price"></strong></div>
+                    <div class="decision-metric"><span id="comparison-buy-price-label">Purchase price</span><strong id="comparison-buy-price"></strong></div>
                     <div class="decision-metric"><span>Remaining cash after purchase</span><strong id="comparison-buy-remaining"></strong></div>
                   </article>
                   <article class="decision-card decision-wait" aria-labelledby="wait-card-title">
@@ -278,6 +288,40 @@
                     <div class="decision-metric"><span id="comparison-retained-label">Money kept</span><strong id="comparison-retained"></strong></div>
                     <div class="decision-metric"><span>Potential savings (3 / 6 months)</span><strong id="comparison-savings"></strong></div>
                   </article>
+                </div>
+              </section>
+              <section class="panel result-panel purchase-decision-panel" id="purchase-decision" aria-labelledby="purchase-decision-title" hidden>
+                <div class="result-heading">
+                  <span class="result-icon purchase-decision-icon" aria-hidden="true">♡</span>
+                  <div><p class="eyebrow small-eyebrow">YOUR NEXT STEP</p><h2 id="purchase-decision-title">Your Purchase Decision</h2></div>
+                </div>
+                <p class="purchase-decision-copy">You've reviewed the numbers. If you've decided to go ahead, add this purchase to your Dashboard.</p>
+                <button class="primary-button purchase-decision-button" id="open-purchase-confirmation" type="button">
+                  <span id="purchase-decision-button-label">I've Decided to Buy</span><span aria-hidden="true">→</span>
+                </button>
+                <div class="purchase-confirmation" id="purchase-confirmation" hidden>
+                  <h3>Confirm this purchase</h3>
+                  <dl class="purchase-confirmation-details">
+                    <div><dt>Item</dt><dd id="confirm-item-name"></dd></div>
+                    <div><dt>Purchase price</dt><dd id="confirm-item-price"></dd></div>
+                    <div><dt>Payment method</dt><dd id="confirm-payment-method"></dd></div>
+                    <div id="confirm-duration-row" hidden><dt>Instalment duration</dt><dd id="confirm-duration"></dd></div>
+                    <div id="confirm-total-row" hidden><dt>Estimated total instalment cost</dt><dd id="confirm-total"></dd></div>
+                    <div id="confirm-monthly-row" hidden><dt>Estimated monthly instalment</dt><dd id="confirm-monthly"></dd></div>
+                    <div id="confirm-interest-row" hidden><dt>Estimated flat interest</dt><dd id="confirm-interest"></dd></div>
+                    <div id="confirm-fees-row" hidden><dt>Additional fees</dt><dd id="confirm-fees"></dd></div>
+                  </dl>
+                  <p class="purchase-destination" id="purchase-destination"></p>
+                  <p class="purchase-duration-note" id="purchase-duration-note" hidden>Dashboard commitments store the monthly amount, but the current record format does not save the instalment duration or end date. Keep the provider’s repayment schedule separately.</p>
+                  <p class="purchase-save-error" id="purchase-save-error" role="alert" hidden></p>
+                  <div class="purchase-confirmation-actions">
+                    <button class="primary-button" id="confirm-add-purchase" type="button">Confirm &amp; Add</button>
+                    <button class="secondary-button" id="cancel-add-purchase" type="button">Cancel</button>
+                  </div>
+                </div>
+                <div class="purchase-success" id="purchase-success" role="status" aria-live="polite" hidden>
+                  <strong>Added to Dashboard successfully!</strong>
+                  <a class="secondary-button purchase-dashboard-link" href="#dashboard" data-page="dashboard"><span>View Dashboard</span><span aria-hidden="true">→</span></a>
                 </div>
               </section>
             </div>

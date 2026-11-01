@@ -23,6 +23,7 @@ Open `http://localhost:3000`. Scam Checker analysis is still a placeholder.
 - `js/calculations.js` provides reusable, data-in/data-out currency, date, budget and purchase-comparison calculations.
 - `js/dashboard.js` renders the Dashboard and manages its financial records.
 - `js/simulator.js` renders the purchase impact, buy-versus-wait comparison and fixed illustrative real-cost examples.
+- `js/advisor-analysis.js` creates the concise local fallback analysis, including a prompt to fill in missing records.
 - `js/ai-advisor.js` renders Gemini insights when available and uses a clearly labelled local analysis fallback otherwise.
 - `server.js` serves the website and validates requests before calling the Gemini API.
 
@@ -60,8 +61,13 @@ Amounts are stored as RM values. The Dashboard and Simulator read this same reco
 
 - Compare Pay in Full with instalments of 3, 6, 12 or 24 months using the Dashboard's existing income, commitment and expense records.
 - Compare estimated remaining money when buying and waiting. Potential savings reflect payments avoided and do not assume the user will actually save them.
-- Translate the purchase price into approximate bowls of mixed rice (RM 12), cups of bubble tea (RM 15) and RapidKL rides (RM 4).
-- Translator reference prices are illustrative examples, not fixed market prices. Instalment estimates assume 0% interest and no fees.
+- Enter an estimated annual flat interest rate (default 0%) and total one-off additional fees (default RM 0) for instalments. Both fields accept non-negative values; rates are limited to 100% and fees to RM 1,000,000.
+- Instalments use `price × annual rate × (months / 12)` for estimated interest, then add fees and divide the estimated total evenly across the selected term. Results are rounded to RM 0.01.
+- These are estimates only, not an APR or a provider's exact repayment method. Check the provider's final terms and charges.
+- Translate the estimated total purchase cost into approximate bowls of mixed rice (RM 12), cups of bubble tea (RM 15) and RapidKL rides (RM 4).
+- Translator reference prices are illustrative examples, not fixed market prices.
+- Potential savings show payments avoided over 3 and 6 months, capped at the estimated total instalment cost; they do not assume the user will actually save the money.
+- After a valid calculation, confirm "I've Decided to Buy" to add a Pay in Full purchase as a dated Shopping expense or an instalment as a BNPL monthly commitment. The existing record format does not store instalment durations or end dates, so keep the provider's schedule separately.
 
 ## Configure the AI Purchase Advisor
 

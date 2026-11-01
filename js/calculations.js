@@ -36,6 +36,10 @@ export function sumAmount(items) {
   return cents / 100;
 }
 
+function roundCurrency(amount) {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
 export function currentMonthExpenses(records, date = new Date()) {
   const month = localDateString(date).slice(0, 7);
   return records.filter((record) => record.type === "expense" && record.date.startsWith(month));
@@ -50,13 +54,33 @@ export function getTotals(records, date = new Date()) {
 
 export function calculatePurchaseImpact(records, purchase, date = new Date()) {
   const totals = getTotals(records, date);
-  const monthlyInstallment = purchase.paymentMethod === "installment"
-    ? Math.round((purchase.price / purchase.duration) * 100) / 100
+  const isInstallment = purchase.paymentMethod === "installment";
+  if (isInstallment && (
+    !Number.isFinite(purchase.annualFlatInterestRate) ||
+    purchase.annualFlatInterestRate < 0 ||
+    purchase.annualFlatInterestRate > 100 ||
+    !Number.isFinite(purchase.additionalFees) ||
+    purchase.additionalFees < 0 ||
+    purchase.additionalFees > 1_000_000 ||
+    ![3, 6, 12, 24].includes(purchase.duration)
+  )) {
+    throw new RangeError("Enter a valid interest rate, additional fee and instalment duration.");
+  }
+  const annualFlatInterestRate = isInstallment ? purchase.annualFlatInterestRate : 0;
+  const additionalFees = isInstallment ? purchase.additionalFees : 0;
+  const totalInterest = isInstallment
+    ? roundCurrency(purchase.price * (annualFlatInterestRate / 100) * (purchase.duration / 12))
     : 0;
-  const newCommitments = totals.commitments + monthlyInstallment;
-  const estimatedRemaining = purchase.paymentMethod === "pay-full"
+  const totalPurchaseCost = isInstallment
+    ? roundCurrency(purchase.price + totalInterest + additionalFees)
+    : purchase.price;
+  const monthlyInstallment = isInstallment
+    ? roundCurrency(totalPurchaseCost / purchase.duration)
+    : 0;
+  const newCommitments = roundCurrency(totals.commitments + monthlyInstallment);
+  const estimatedRemaining = roundCurrency(purchase.paymentMethod === "pay-full"
     ? totals.remaining - purchase.price
-    : totals.remaining - monthlyInstallment;
+    : totals.remaining - monthlyInstallment);
   const hasIncomeRecords = records.some((record) => record.type === "income");
   const hasCommitmentRecords = records.some((record) => record.type === "commitment");
   let assessment;
@@ -99,7 +123,11 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
     itemName: purchase.name,
     itemPrice: purchase.price,
     paymentMethod: purchase.paymentMethod,
-    duration: purchase.paymentMethod === "installment" ? purchase.duration : null,
+    duration: isInstallment ? purchase.duration : null,
+    annualFlatInterestRate,
+    additionalFees,
+    totalInterest,
+    totalPurchaseCost,
     monthlyInstallment,
     newCommitments,
     estimatedRemaining,
@@ -114,11 +142,17 @@ export function calculatePurchaseComparison(impact) {
   const monthlyPaymentAvoided = impact.monthlyInstallment;
   const potentialSavings = (months) => isPayFull
     ? impact.itemPrice
-    : Math.round(monthlyPaymentAvoided * Math.min(months, impact.duration) * 100) / 100;
+    : Math.min(
+      impact.totalPurchaseCost,
+      Math.round(monthlyPaymentAvoided * Math.min(months, impact.duration) * 100) / 100,
+    );
 
   return {
     itemName: impact.itemName,
     itemPrice: impact.itemPrice,
+    totalInterest: impact.totalInterest,
+    additionalFees: impact.additionalFees,
+    totalPurchaseCost: impact.totalPurchaseCost,
     paymentMethod: impact.paymentMethod,
     duration: impact.duration,
     monthlyInstallment: monthlyPaymentAvoided,

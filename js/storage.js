@@ -1,4 +1,4 @@
-import { dateAfterDays, isValidDate } from "./calculations.js";
+import { dateAfterDays, isValidDate, localDateString } from "./calculations.js";
 
 export const STORAGE_KEY = "bolehbuy-finances";
 export const TRANSLATOR_PRICES_KEY = "bolehbuy-cost-translator-prices";
@@ -147,4 +147,53 @@ export function saveRecords(records) {
 
 export function getRecords() {
   return currentRecords;
+}
+
+export function createPurchaseRecord(purchase, id) {
+  const recordId = id || window.crypto?.randomUUID?.() ||
+    `record-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  if (
+    !purchase ||
+    typeof purchase.itemName !== "string" ||
+    !purchase.itemName.trim() ||
+    purchase.itemName.trim().length > 80 ||
+    typeof recordId !== "string" ||
+    !recordId.trim()
+  ) {
+    throw new Error("The purchase details are invalid.");
+  }
+
+  if (purchase.paymentMethod === "pay-full") {
+    if (!Number.isFinite(purchase.itemPrice) || purchase.itemPrice <= 0) {
+      throw new Error("The purchase price must be greater than RM 0.");
+    }
+    return {
+      id: recordId,
+      type: "expense",
+      name: purchase.itemName.trim(),
+      category: "Shopping",
+      amount: Math.round(purchase.itemPrice * 100) / 100,
+      date: localDateString(),
+      dueDate: null,
+    };
+  }
+
+  if (
+    purchase.paymentMethod !== "installment" ||
+    ![3, 6, 12, 24].includes(purchase.duration) ||
+    !Number.isFinite(purchase.monthlyInstallment) ||
+    purchase.monthlyInstallment <= 0
+  ) {
+    throw new Error("The instalment details are invalid.");
+  }
+
+  return {
+    id: recordId,
+    type: "commitment",
+    name: purchase.itemName.trim(),
+    category: "BNPL",
+    amount: Math.round(purchase.monthlyInstallment * 100) / 100,
+    date: null,
+    dueDate: null,
+  };
 }

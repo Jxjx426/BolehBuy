@@ -9,7 +9,7 @@ import {
   localDateString,
   sumAmount,
 } from "./calculations.js";
-import { CATEGORIES, saveRecords as persistRecords } from "./storage.js";
+import { CATEGORIES, createPurchaseRecord, saveRecords as persistRecords } from "./storage.js";
 
 const dialog = document.querySelector("#record-dialog");
 const dialogContent = document.querySelector("#dialog-content");
@@ -41,6 +41,37 @@ function updateRecords(nextRecords) {
   records = nextRecords;
   renderDashboard();
   return true;
+}
+
+export function addSimulatorPurchase(purchase, recordId) {
+  if (!storageReady) {
+    return { success: false, error: "Browser storage is unavailable, so this purchase was not saved." };
+  }
+
+  let record;
+  try {
+    record = createPurchaseRecord(purchase, recordId);
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+
+  if (records.some((entry) => entry.id === record.id)) {
+    return { success: false, error: "This purchase has already been added." };
+  }
+
+  const previousMonth = selectedMonth;
+  if (record.type === "expense") {
+    const today = new Date();
+    selectedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  }
+  if (!updateRecords([...records, record])) {
+    selectedMonth = previousMonth;
+    renderDashboard();
+    return { success: false, error: notice.textContent };
+  }
+
+  setNotice("Added to Dashboard successfully!");
+  return { success: true, record };
 }
 
 function createElement(tag, className, text) {

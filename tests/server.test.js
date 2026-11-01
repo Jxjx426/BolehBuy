@@ -8,6 +8,10 @@ const validPayload = {
     itemPrice: 1200,
     paymentMethod: "installment",
     duration: 6,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    totalInterest: 0,
+    totalPurchaseCost: 1200,
     monthlyInstallment: 200,
   },
   finances: {
@@ -23,6 +27,7 @@ const validPayload = {
   spendingAssessment: {
     title: "Be Careful",
     reason: "Your estimated remaining money is below 20% of your income.",
+    level: "careful",
   },
   comparison: {
     buyRemaining: 578,
@@ -35,11 +40,12 @@ const validPayload = {
 };
 
 const validAnalysis = {
-  overallOpinion: "This purchase has a noticeable monthly impact based on the figures provided.",
-  keyReasons: ["The instalment is RM 200 each month.", "Your existing commitments are RM 680.", "The estimate leaves RM 578 after the purchase."],
-  financialRisks: ["Other unrecorded spending could reduce your available money."],
-  suggestions: ["Check whether the monthly instalment fits your regular budget.", "Compare the total cost with a few alternatives."],
-  questionsToConsider: ["Would waiting for a month change your priorities?", "Could an unexpected expense affect this plan?"],
+  verdictLabel: "Be careful",
+  verdict: "The payment leaves less room for other plans this month.",
+  positive: "Your recorded budget gives a useful starting point.",
+  watchOut: "Unrecorded expenses could make the plan tighter.",
+  suggestion: "Check the payment dates against your regular bills.",
+  question: "Would an unexpected cost change how this feels?",
 };
 
 let server;
@@ -88,6 +94,22 @@ test("invalid and oversized requests are rejected before reaching Gemini", async
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...validPayload, privateData: "must not pass validation" }),
   });
+  const invalidRate = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...validPayload,
+      purchase: { ...validPayload.purchase, annualFlatInterestRate: 100.01 },
+    }),
+  });
+  const invalidFees = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...validPayload,
+      purchase: { ...validPayload.purchase, additionalFees: 1_000_000.01 },
+    }),
+  });
   const oversized = await fetch(`${origin}/api/analyse-purchase`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -96,6 +118,10 @@ test("invalid and oversized requests are rejected before reaching Gemini", async
 
   assert.equal(invalid.status, 400);
   assert.equal((await invalid.json()).error.code, "INVALID_REQUEST");
+  assert.equal(invalidRate.status, 400);
+  assert.equal((await invalidRate.json()).error.code, "INVALID_REQUEST");
+  assert.equal(invalidFees.status, 400);
+  assert.equal((await invalidFees.json()).error.code, "INVALID_REQUEST");
   assert.equal(oversized.status, 413);
   assert.equal((await oversized.json()).error.code, "REQUEST_TOO_LARGE");
   assert.equal(called, false);
@@ -128,6 +154,15 @@ test("valid summary reaches Gemini with structured output and returns validated 
   assert.equal(request.model, "test-flash");
   assert.equal(request.config.responseMimeType, "application/json");
   assert.match(request.config.systemInstruction, /source of truth/);
+  assert.match(request.config.systemInstruction, /one short sentence/);
+  assert.deepEqual(request.config.responseSchema.required, [
+    "verdictLabel",
+    "verdict",
+    "positive",
+    "watchOut",
+    "suggestion",
+    "question",
+  ]);
   assert.equal(request.config.httpOptions.timeout, 20_000);
   assert.equal(request.config.httpOptions.retryOptions.attempts, 1);
   assert.equal(request.contents, JSON.stringify(validPayload));
@@ -145,6 +180,7 @@ test("incomplete records stay null in the request rather than being presented as
   incompletePayload.spendingAssessment = {
     title: "Insufficient Data",
     reason: "Add records for monthly income for a more complete assessment.",
+    level: "insufficient",
   };
   incompletePayload.comparison.buyRemaining = null;
   incompletePayload.comparison.dontBuyRemaining = null;
