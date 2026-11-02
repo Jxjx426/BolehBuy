@@ -1,9 +1,14 @@
 import { addSimulatorPurchase } from "./dashboard.js";
 import {
+  extractionFieldMessage,
+  initializeCheckoutScanner,
+} from "./checkout-scanner.js";
+import {
   calculateCommitmentMetrics,
   calculateCostEquivalents,
   calculatePurchaseImpact,
   currency,
+  isValidDurationMonths,
 } from "./calculations.js";
 import {
   DEFAULT_TRANSLATOR_PRICES,
@@ -24,6 +29,8 @@ const durationField = document.querySelector("#duration-field");
 const durationInput = document.querySelector("#instalment-duration");
 const instalmentCostFields = document.querySelector("#instalment-cost-fields");
 const interestRateInput = document.querySelector("#annual-interest-rate");
+const quotedMonthlyInstallmentInput = document.querySelector("#quoted-monthly-installment");
+const quotedTotalInstallmentInput = document.querySelector("#quoted-total-installment");
 const additionalFeesInput = document.querySelector("#additional-fees");
 const formError = document.querySelector("#simulator-form-error");
 const emptyResult = document.querySelector("#simulator-empty");
@@ -42,6 +49,128 @@ let hasCalculatedPurchase = false;
 let pendingPurchase = null;
 let purchaseSubmissionId = null;
 let purchaseAdded = false;
+let scannerExtracted = false;
+
+const extractionInputs = {
+  itemName: itemNameInput,
+  cashPrice: itemPriceInput,
+  paymentMethod: paymentMethodInput,
+  durationMonths: durationInput,
+  monthlyInstallment: quotedMonthlyInstallmentInput,
+  totalInstallmentPayment: quotedTotalInstallmentInput,
+  processingFee: additionalFeesInput,
+};
+
+function setExtractionStatus(field, text, warning) {
+  const status = document.querySelector(`[data-extraction-status="${field}"]`);
+  const input = extractionInputs[field];
+  status.textContent = text;
+  status.hidden = !text;
+  status.classList.toggle("is-warning", warning);
+  input?.classList.toggle("extracted-value", Boolean(text));
+  input?.classList.toggle("is-warning", warning && Boolean(text));
+}
+
+function updateDurationVisibility() {
+  const isInstallment = paymentMethodInput.value === "installment";
+  const showDuration = isInstallment || scannerExtracted;
+  durationField.hidden = !showDuration;
+  durationInput.required = isInstallment;
+  instalmentCostFields.hidden = !showDuration;
+  interestRateInput.required = isInstallment;
+  additionalFeesInput.required = isInstallment;
+  interestRateInput.disabled = !showDuration;
+  additionalFeesInput.disabled = !showDuration;
+}
+
+function applyCheckoutExtraction(extraction) {
+  scannerExtracted = true;
+  hasCalculatedPurchase = false;
+  currentPurchaseImpact = null;
+  resetPurchaseDecision();
+  invalidateAIAdvice();
+  hidePurchaseResults();
+
+  itemNameInput.value = extraction.itemName.value;
+  itemPriceInput.value = extraction.cashPrice.value;
+  paymentMethodInput.value = extraction.paymentMethod.value === "unknown"
+    ? ""
+    : extraction.paymentMethod.value;
+  durationInput.value = "";
+  const extractedDuration = Number(extraction.durationMonths.value);
+  let durationWarning = false;
+  let durationStatus = extractionFieldMessage(extraction.durationMonths, "Instalment period").text;
+  if (isValidDurationMonths(extractedDuration)) {
+    if (![...durationInput.options].some((option) => option.value === String(extractedDuration))) {
+      const option = document.createElement("option");
+      option.value = String(extractedDuration);
+      option.textContent = `${extractedDuration} months`;
+      durationInput.append(option);
+    }
+    durationInput.value = String(extractedDuration);
+  } else if (extraction.durationMonths.value) {
+    durationWarning = true;
+    durationStatus = `⚠️ AI found ${extractedDuration} months, which is not an available Simulator duration. Verify the plan before calculating.`;
+  }
+  quotedMonthlyInstallmentInput.value = extraction.monthlyInstallment.value;
+  quotedTotalInstallmentInput.value = extraction.totalInstallmentPayment.value;
+  additionalFeesInput.value = extraction.processingFee.value;
+
+  for (const [field, data, label] of [
+    ["itemName", extraction.itemName, "Product name"],
+    ["cashPrice", extraction.cashPrice, "Cash price"],
+    ["paymentMethod", extraction.paymentMethod, "Payment method"],
+    ["monthlyInstallment", extraction.monthlyInstallment, "Monthly instalment"],
+    ["totalInstallmentPayment", extraction.totalInstallmentPayment, "Total instalment payment"],
+    ["processingFee", extraction.processingFee, "Processing fee"],
+  ]) {
+    const message = extractionFieldMessage(data, label);
+    setExtractionStatus(field, message.text, message.warning || (field === "paymentMethod" && data.value === "unknown"));
+  }
+  setExtractionStatus("durationMonths", durationStatus, durationWarning || extraction.durationMonths.confidence === "not_found");
+  if (extraction.paymentMethod.value === "unknown") {
+    setExtractionStatus("paymentMethod", "⚠️ Payment method unclear. Select Pay in Full or Instalments manually.", true);
+  }
+
+  updateDurationVisibility();
+  const complete = Boolean(
+    extraction.itemName.value &&
+    extraction.cashPrice.value &&
+    extraction.paymentMethod.value !== "unknown" &&
+    (extraction.paymentMethod.value === "pay-full" ||
+      (extraction.durationMonths.value &&
+        isValidDurationMonths(extractedDuration) &&
+        extraction.monthlyInstallment.value &&
+        extraction.processingFee.value)),
+  );
+  document.querySelector("#scanner-message").textContent = complete
+    ? "✨ AI extracted these details. Please check that they are accurate before calculating."
+    : "Some details need your review. Check the amber notes beside the fields; AI will not guess missing information.";
+}
+
+function markExtractionEdited(target) {
+  const field = target.dataset.extractionField;
+  if (!field) return;
+  const input = extractionInputs[field];
+  const status = document.querySelector(`[data-extraction-status="${field}"]`);
+  const hasValue = Boolean(input?.value.trim());
+  if (hasValue) {
+    setExtractionStatus(field, "Edited by you — verify this against the checkout.", false);
+  } else if (scannerExtracted) {
+    const labels = {
+      itemName: "Product name",
+      cashPrice: "Cash price",
+      paymentMethod: "Payment method",
+      durationMonths: "Instalment period",
+      monthlyInstallment: "Monthly instalment",
+      totalInstallmentPayment: "Total instalment payment",
+      processingFee: "Processing fee",
+    };
+    setExtractionStatus(field, `⚠️ ${labels[field]} is required or not confirmed. Enter it manually; AI will not guess.`, true);
+  } else {
+    status.hidden = true;
+  }
+}
 
 function showValidationError(message, input = itemNameInput) {
   formError.textContent = message;
@@ -168,14 +297,43 @@ function readPurchaseDetails() {
   }
 
   const paymentMethod = paymentMethodInput.value;
+  if (!["pay-full", "installment"].includes(paymentMethod)) {
+    return { error: "Select a payment method before calculating.", input: paymentMethodInput };
+  }
   const duration = Number(durationInput.value);
-  if (paymentMethod === "installment" && ![3, 6, 12, 24].includes(duration)) {
+  if (paymentMethod === "installment" && !isValidDurationMonths(duration)) {
     return { error: "Choose an instalment duration to continue.", input: durationInput };
   }
 
   let annualFlatInterestRate = 0;
   let additionalFees = 0;
+  let quotedMonthlyInstallment = null;
+  let quotedTotalInstallmentPayment = null;
   if (paymentMethod === "installment") {
+    const monthlyQuoteText = quotedMonthlyInstallmentInput.value.trim();
+    if (monthlyQuoteText) {
+      quotedMonthlyInstallment = Number(monthlyQuoteText);
+      if (!/^\d+(?:\.\d{1,2})?$/.test(monthlyQuoteText) ||
+        !Number.isFinite(quotedMonthlyInstallment) ||
+        quotedMonthlyInstallment <= 0 ||
+        quotedMonthlyInstallment > 1_000_000_000) {
+        return { error: "Enter a quoted monthly instalment greater than RM 0, using up to two decimal places.", input: quotedMonthlyInstallmentInput };
+      }
+    } else if (scannerExtracted) {
+      return { error: "Enter the monthly instalment shown at checkout. AI will not calculate or guess this value.", input: quotedMonthlyInstallmentInput };
+    }
+
+    const totalQuoteText = quotedTotalInstallmentInput.value.trim();
+    if (totalQuoteText) {
+      quotedTotalInstallmentPayment = Number(totalQuoteText);
+      if (!/^\d+(?:\.\d{1,2})?$/.test(totalQuoteText) ||
+        !Number.isFinite(quotedTotalInstallmentPayment) ||
+        quotedTotalInstallmentPayment <= 0 ||
+        quotedTotalInstallmentPayment > 1_000_000_000) {
+        return { error: "Enter a quoted total instalment payment greater than RM 0, using up to two decimal places.", input: quotedTotalInstallmentInput };
+      }
+    }
+
     const rateText = interestRateInput.value.trim();
     annualFlatInterestRate = Number(rateText);
     if (!/^(?:\d+(?:\.\d{1,6})?|\.\d{1,6})$/.test(rateText) ||
@@ -203,6 +361,8 @@ function readPurchaseDetails() {
       duration,
       annualFlatInterestRate,
       additionalFees,
+      quotedMonthlyInstallment,
+      quotedTotalInstallmentPayment,
     },
   };
 }
@@ -237,19 +397,25 @@ function openPurchaseConfirmation() {
   purchaseSaveError.hidden = true;
   purchaseSaveError.textContent = "";
   const isPayFull = pendingPurchase.paymentMethod === "pay-full";
+  const hasQuotedInstalment = !isPayFull && pendingPurchase.quotedMonthlyInstallment !== null;
   setText("#confirm-item-name", pendingPurchase.itemName);
   setText("#confirm-item-price", currency(pendingPurchase.itemPrice));
   setText("#confirm-payment-method", isPayFull ? "Pay in Full" : "BNPL / Instalments");
   document.querySelector("#confirm-duration-row").hidden = isPayFull;
   document.querySelector("#confirm-total-row").hidden = isPayFull;
   document.querySelector("#confirm-monthly-row").hidden = isPayFull;
-  document.querySelector("#confirm-interest-row").hidden = isPayFull;
+  document.querySelector("#confirm-interest-row").hidden = isPayFull || hasQuotedInstalment;
   document.querySelector("#confirm-fees-row").hidden = isPayFull;
   document.querySelector("#purchase-duration-note").hidden = isPayFull;
   if (!isPayFull) {
     setText("#confirm-duration", `${pendingPurchase.duration} months`);
     setText("#confirm-total", currency(pendingPurchase.totalPurchaseCost));
     setText("#confirm-monthly", `${currency(pendingPurchase.monthlyInstallment)} / month`);
+    document.querySelector("#confirm-total-row dt").textContent = pendingPurchase.quotedTotalInstallmentPayment !== null
+      ? "Quoted total instalment payment"
+      : hasQuotedInstalment
+        ? "Total based on quoted monthly payments"
+        : "Estimated total instalment cost";
     setText("#confirm-interest", currency(pendingPurchase.totalInterest));
     setText("#confirm-fees", currency(pendingPurchase.additionalFees));
     setText("#purchase-destination", "This will be added to your Dashboard under Monthly Commitments (BNPL). Only the monthly instalment is recorded, not the full purchase price.");
@@ -297,19 +463,10 @@ function updateResultsFromForm() {
 
 export function initializeSimulator() {
   initializeAIAdvisor(() => currentPurchaseImpact ? createAdvisorPayload(currentPurchaseImpact) : null);
+  initializeCheckoutScanner(applyCheckoutExtraction);
 
-  function updateDurationVisibility() {
-    const showDuration = paymentMethodInput.value === "installment";
-    durationField.hidden = !showDuration;
-    durationInput.required = showDuration;
-    instalmentCostFields.hidden = !showDuration;
-    interestRateInput.required = showDuration;
-    additionalFeesInput.required = showDuration;
-    interestRateInput.disabled = !showDuration;
-    additionalFeesInput.disabled = !showDuration;
-  }
-
-  function onInputChange() {
+  function onInputChange(event) {
+    markExtractionEdited(event.target);
     clearValidationError();
     resetPurchaseDecision();
     invalidateAIAdvice();

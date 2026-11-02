@@ -46,6 +46,17 @@ const validAnalysis = {
   recommendedAction: "Check the payment dates against your regular bills.",
 };
 
+const validExtraction = {
+  itemName: { value: "Campus Study Headphones", confidence: "high" },
+  cashPrice: { value: "360", confidence: "high" },
+  paymentMethod: { value: "installment", confidence: "high" },
+  durationMonths: { value: "6", confidence: "high" },
+  monthlyInstallment: { value: "63", confidence: "high" },
+  totalInstallmentPayment: { value: "378", confidence: "high" },
+  processingFee: { value: "0", confidence: "high" },
+  warnings: [],
+};
+
 let server;
 afterEach(async () => {
   if (server) {
@@ -78,6 +89,185 @@ test("missing API key gives a clear setup response without contacting Gemini", a
   assert.equal(body.error.code, "NOT_CONFIGURED");
   assert.match(body.error.message, /\.env/);
   assert.equal(called, false);
+});
+
+test("checkout image extraction uses structured multimodal Gemini input", async () => {
+  let request;
+  const origin = await startServer({
+    apiKey: "test-key",
+    model: "test-flash",
+    aiClient: {
+      models: {
+        generateContent: async (value) => {
+          request = value;
+          return { text: JSON.stringify(validExtraction) };
+        },
+      },
+    },
+  });
+  const response = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: "Fictional checkout screenshot",
+      image: { mimeType: "image/jpeg", data: "/9j/2Q==" },
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.extraction, validExtraction);
+  assert.equal(request.model, "test-flash");
+  assert.equal(request.config.responseMimeType, "application/json");
+  assert.ok(request.contents[0].parts.some((part) => part.inlineData?.mimeType === "image/jpeg"));
+  assert.match(request.config.systemInstruction, /Never infer a cash price from instalment totals/);
+  assert.match(request.config.systemInstruction, /If several prices are visible, explain the ambiguity/);
+  const pngResponse = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: "Fictional PNG checkout",
+      image: { mimeType: "image/png", data: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64") },
+    }),
+  });
+  assert.equal(pngResponse.status, 200);
+  assert.ok(request.contents[0].parts.some((part) => part.inlineData?.mimeType === "image/png"));
+  assert.deepEqual(request.config.responseSchema.required, [
+    "itemName",
+    "cashPrice",
+    "paymentMethod",
+    "durationMonths",
+    "monthlyInstallment",
+    "totalInstallmentPayment",
+    "processingFee",
+    "warnings",
+  ]);
+  assert.doesNotMatch(JSON.stringify(body), /test-key/);
+});
+
+test("text extraction preserves a missing instalment period instead of guessing", async () => {
+  const missingTermExtraction = structuredClone(validExtraction);
+  missingTermExtraction.durationMonths = { value: "", confidence: "not_found" };
+  missingTermExtraction.warnings = ["Instalment period is not visible; select it manually."];
+  let request;
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: {
+      models: {
+        generateContent: async (value) => {
+          request = value;
+          return { text: JSON.stringify(missingTermExtraction) };
+        },
+      },
+    },
+  });
+  const response = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: "Product: Demo headphones. Cash RM360. Monthly RM63. Duration not shown.",
+      image: null,
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body.extraction.durationMonths, { value: "", confidence: "not_found" });
+  assert.match(body.extraction.warnings[0], /not visible/);
+  assert.equal(request.contents[0].parts.some((part) => part.inlineData), false);
+});
+
+test("unreadable checkout can return explicit not-found fields without invented amounts", async () => {
+  const unreadableExtraction = {
+    itemName: { value: "", confidence: "not_found" },
+    cashPrice: { value: "", confidence: "not_found" },
+    paymentMethod: { value: "unknown", confidence: "not_found" },
+    durationMonths: { value: "", confidence: "not_found" },
+    monthlyInstallment: { value: "", confidence: "not_found" },
+    totalInstallmentPayment: { value: "", confidence: "not_found" },
+    processingFee: { value: "", confidence: "not_found" },
+    warnings: ["The screenshot is too blurry to read."],
+  };
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => ({ text: JSON.stringify(unreadableExtraction) }) } },
+  });
+  const response = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "", image: { mimeType: "image/jpeg", data: "/9j/2Q==" } }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.extraction.cashPrice.value, "");
+  assert.equal(body.extraction.durationMonths.confidence, "not_found");
+});
+
+test("invalid image formats, signatures and missing scan input are rejected before Gemini", async () => {
+  let called = false;
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { called = true; } } },
+  });
+  const invalidImage = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "", image: { mimeType: "image/gif", data: "R0lGODlh" } }),
+  });
+  const invalidSignature = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "", image: { mimeType: "image/png", data: Buffer.from("not a PNG").toString("base64") } }),
+  });
+  const missingInput = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "", image: null }),
+  });
+
+  assert.equal(invalidImage.status, 400);
+  assert.equal(invalidSignature.status, 400);
+  assert.equal(missingInput.status, 400);
+  assert.equal(called, false);
+});
+
+test("oversized checkout images are rejected before Gemini", async () => {
+  let called = false;
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { called = true; } } },
+  });
+  const image = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    Buffer.alloc(4 * 1024 * 1024),
+  ]);
+  const response = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "", image: { mimeType: "image/png", data: image.toString("base64") } }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "INVALID_EXTRACTION_REQUEST");
+  assert.equal(called, false);
+});
+
+test("checkout extraction maps Gemini failures to a safe response", async () => {
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => { throw new Error("private provider details"); } } },
+  });
+  const response = await fetch(`${origin}/api/extract-checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "Fictional checkout details", image: null }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, "GEMINI_UNAVAILABLE");
+  assert.doesNotMatch(JSON.stringify(body), /private provider details/);
 });
 
 test("invalid and oversized requests are rejected before reaching Gemini", async () => {

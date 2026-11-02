@@ -17,6 +17,10 @@ export function isValidDate(value) {
   return !Number.isNaN(parsed.getTime()) && localDateString(parsed) === value;
 }
 
+export function isValidDurationMonths(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 120;
+}
+
 export function currency(amount) {
   const absolute = Math.abs(amount);
   const formatted = absolute.toLocaleString("en-MY", {
@@ -101,6 +105,8 @@ export function getTotals(records, date = new Date(), asOfDate = new Date()) {
 export function calculatePurchaseImpact(records, purchase, date = new Date()) {
   const totals = getTotals(records, date);
   const isInstallment = purchase.paymentMethod === "installment";
+  const quotedMonthlyInstallment = purchase.quotedMonthlyInstallment ?? null;
+  const quotedTotalInstallmentPayment = purchase.quotedTotalInstallmentPayment ?? null;
   if (isInstallment && (
     !Number.isFinite(purchase.annualFlatInterestRate) ||
     purchase.annualFlatInterestRate < 0 ||
@@ -108,7 +114,11 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
     !Number.isFinite(purchase.additionalFees) ||
     purchase.additionalFees < 0 ||
     purchase.additionalFees > 1_000_000 ||
-    ![3, 6, 12, 24].includes(purchase.duration)
+    !isValidDurationMonths(purchase.duration) ||
+    (quotedMonthlyInstallment !== null &&
+      (!Number.isFinite(quotedMonthlyInstallment) || quotedMonthlyInstallment <= 0)) ||
+    (quotedTotalInstallmentPayment !== null &&
+      (!Number.isFinite(quotedTotalInstallmentPayment) || quotedTotalInstallmentPayment <= 0))
   )) {
     throw new RangeError("Enter a valid interest rate, additional fee and instalment duration.");
   }
@@ -118,10 +128,16 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
     ? roundCurrency(purchase.price * (annualFlatInterestRate / 100) * (purchase.duration / 12))
     : 0;
   const totalPurchaseCost = isInstallment
-    ? roundCurrency(purchase.price + totalInterest + additionalFees)
+    ? quotedTotalInstallmentPayment !== null
+      ? roundCurrency(quotedTotalInstallmentPayment)
+      : quotedMonthlyInstallment !== null
+        ? roundCurrency(quotedMonthlyInstallment * purchase.duration)
+        : roundCurrency(purchase.price + totalInterest + additionalFees)
     : purchase.price;
   const monthlyInstallment = isInstallment
-    ? roundCurrency(totalPurchaseCost / purchase.duration)
+    ? quotedMonthlyInstallment !== null
+      ? roundCurrency(quotedMonthlyInstallment)
+      : roundCurrency(totalPurchaseCost / purchase.duration)
     : 0;
   const newCommitments = roundCurrency(totals.commitments + monthlyInstallment);
   const estimatedRemaining = roundCurrency(purchase.paymentMethod === "pay-full"
@@ -175,6 +191,8 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
     totalInterest,
     totalPurchaseCost,
     monthlyInstallment,
+    quotedMonthlyInstallment: isInstallment ? quotedMonthlyInstallment : null,
+    quotedTotalInstallmentPayment: isInstallment ? quotedTotalInstallmentPayment : null,
     newCommitments,
     estimatedRemaining,
     hasIncomeRecords,

@@ -119,7 +119,7 @@ test("purchase record creation rejects invalid instalments", () => {
   assert.throws(() => createPurchaseRecord({
     itemName: "Laptop",
     paymentMethod: "installment",
-    duration: 9,
+    duration: 0,
     monthlyInstallment: 100,
   }, "invalid-purchase"), /instalment details are invalid/);
 });

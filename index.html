@@ -181,6 +181,43 @@
             </div>
             <div class="sticker sticker-yellow"><span aria-hidden="true">✦</span><br />No judgement,<br />just clarity.</div>
           </div>
+          <section class="panel checkout-scanner-panel" aria-labelledby="checkout-scanner-title">
+            <div class="scanner-heading">
+              <div>
+                <p class="eyebrow small-eyebrow">A QUICK CHECK BEFORE CHECKOUT</p>
+                <h2 id="checkout-scanner-title">Scan Before You Buy</h2>
+                <p class="section-copy">Upload a checkout screenshot or paste product details. Let AI read the numbers before you commit.</p>
+                <p class="scanner-privacy-note">Use redacted checkout details only. Do not include card, account, password or IC information; screenshots are sent to Gemini for extraction.</p>
+              </div>
+              <span class="scanner-sparkle" aria-hidden="true">✧</span>
+            </div>
+            <div class="scanner-input-grid">
+              <div>
+                <label class="sr-only" for="checkout-image">Checkout screenshot (PNG or JPG)</label>
+                <div class="checkout-dropzone" id="checkout-dropzone" tabindex="0" role="button" aria-controls="checkout-image">
+                  <input id="checkout-image" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" hidden />
+                  <span class="dropzone-icon" aria-hidden="true">↑</span>
+                  <strong>Drop a checkout screenshot here</strong>
+                  <span>or choose a PNG or JPG image · up to 4 MB</span>
+                  <span class="selected-image-name" id="selected-image-name">No screenshot selected</span>
+                </div>
+              </div>
+              <div>
+                <label for="checkout-text">Or paste product details</label>
+                <textarea id="checkout-text" class="checkout-textarea" maxlength="8000" placeholder="Paste visible product and payment details here…"></textarea>
+              </div>
+            </div>
+            <div class="scanner-examples">
+              <span>Fictional demos:</span>
+              <button class="secondary-button" type="button" data-sample-checkout="complete">Sample 1 — Complete BNPL Checkout</button>
+              <button class="secondary-button" type="button" data-sample-checkout="missing-duration">Sample 2 — Missing Instalment Period</button>
+            </div>
+            <div class="scanner-action-row">
+              <button class="primary-button" id="extract-purchase-details" type="button">Extract Purchase Details <span aria-hidden="true">→</span></button>
+              <p class="scanner-message" id="scanner-message" role="status" aria-live="polite"></p>
+            </div>
+            <div class="scanner-warning-list" id="scanner-warnings" role="status" aria-live="polite" hidden></div>
+          </section>
           <div class="simulator-layout">
             <div class="simulator-left-column">
               <section class="panel form-panel" aria-labelledby="purchase-form-title">
@@ -189,29 +226,43 @@
                 <p class="section-copy">Add a few details to see how this purchase might fit into your month.</p>
                 <form class="purchase-form" id="simulator-form" novalidate>
                   <label for="item-name">What do you want to buy?</label>
-                  <input id="item-name" name="item-name" type="text" maxlength="80" placeholder="e.g. New headphones" required />
+                  <input id="item-name" name="item-name" data-extraction-field="itemName" type="text" maxlength="80" placeholder="e.g. New headphones" required />
+                  <small class="extraction-field-status" data-extraction-status="itemName" hidden></small>
                   <label for="item-price">Price (RM)</label>
-                  <div class="input-with-prefix"><span>RM</span><input id="item-price" name="item-price" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 299" required /></div>
+                  <div class="input-with-prefix"><span>RM</span><input id="item-price" name="item-price" data-extraction-field="cashPrice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 299" required /></div>
+                  <small class="extraction-field-status" data-extraction-status="cashPrice" hidden></small>
                   <label for="payment-method">Payment method</label>
-                  <select id="payment-method" name="payment-method" required>
+                  <select id="payment-method" name="payment-method" data-extraction-field="paymentMethod" required>
+                    <option value="">Select a payment method</option>
                     <option value="installment" selected>BNPL / Instalments</option>
                     <option value="pay-full">Pay in Full</option>
                   </select>
+                  <small class="extraction-field-status" data-extraction-status="paymentMethod" hidden></small>
                   <div id="duration-field" class="duration-field">
                     <label for="instalment-duration">Instalment duration</label>
-                    <select id="instalment-duration" name="instalment-duration" required>
+                    <select id="instalment-duration" name="instalment-duration" data-extraction-field="durationMonths" required>
+                      <option value="">Select a duration</option>
                       <option value="3" selected>3 months</option>
                       <option value="6">6 months</option>
                       <option value="12">12 months</option>
                       <option value="24">24 months</option>
                     </select>
+                    <small class="extraction-field-status" data-extraction-status="durationMonths" hidden></small>
                   </div>
                   <div id="instalment-cost-fields" class="instalment-cost-fields">
                     <label for="annual-interest-rate">Annual Flat Interest Rate (%)</label>
                     <input id="annual-interest-rate" name="annual-interest-rate" type="number" min="0" max="100" step="any" inputmode="decimal" value="0" required />
+                    <label for="quoted-monthly-installment">Quoted Monthly Instalment (RM)</label>
+                    <div class="input-with-prefix"><span>RM</span><input id="quoted-monthly-installment" name="quoted-monthly-installment" data-extraction-field="monthlyInstallment" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Optional provider quote" /></div>
+                    <small class="extraction-field-status" data-extraction-status="monthlyInstallment" hidden></small>
+                    <label for="quoted-total-installment">Quoted Total Instalment Payment (RM)</label>
+                    <div class="input-with-prefix"><span>RM</span><input id="quoted-total-installment" name="quoted-total-installment" data-extraction-field="totalInstallmentPayment" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Optional if shown" /></div>
+                    <small class="extraction-field-status" data-extraction-status="totalInstallmentPayment" hidden></small>
                     <label for="additional-fees">Additional Fees (RM)</label>
-                    <div class="input-with-prefix"><span>RM</span><input id="additional-fees" name="additional-fees" type="number" min="0" max="1000000" step="any" inputmode="decimal" value="0" required /></div>
+                    <div class="input-with-prefix"><span>RM</span><input id="additional-fees" name="additional-fees" data-extraction-field="processingFee" type="number" min="0" max="1000000" step="any" inputmode="decimal" value="0" required /></div>
+                    <small class="extraction-field-status" data-extraction-status="processingFee" hidden></small>
                     <p class="instalment-estimate-note">Estimates only. Actual interest, fees and repayment methods vary by provider. This is an estimated flat-rate calculation, not a provider APR quote.</p>
+                    <p class="instalment-estimate-note">A quoted monthly instalment is used for the commitment amount. A quoted total payment takes precedence over the estimated flat-rate total.</p>
                   </div>
                   <p class="simulator-form-error" id="simulator-form-error" role="alert" hidden></p>
                   <button class="primary-button" type="submit">Calculate Impact <span aria-hidden="true">→</span></button>

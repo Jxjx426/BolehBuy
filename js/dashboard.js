@@ -458,8 +458,9 @@ function addFormField(form, labelText, name, type, options = {}) {
     input = document.createElement("input");
     input.type = type;
     if (type === "number") {
-      input.min = "0.01";
-      input.step = "0.01";
+      input.min = String(options.min ?? 0.01);
+      input.step = String(options.step ?? 0.01);
+      if (options.max !== undefined) input.max = String(options.max);
       input.inputMode = "decimal";
       input.required = true;
     } else if (options.required !== false) {
@@ -498,12 +499,14 @@ function renderRecordForm(type, record = null) {
       value: record?.category ?? CATEGORIES[type][0],
     });
     if (type === "commitment") {
-      const durationInput = addFormField(form, "Duration (months)", "durationMonths", "select", {
-        values: ["", "3", "6", "12", "24"],
-        value: record?.durationMonths ? String(record.durationMonths) : "",
+      const durationInput = addFormField(form, "Duration (months)", "durationMonths", "number", {
+        value: record?.durationMonths ?? "",
+        min: 1,
+        max: 120,
+        step: 1,
+        placeholder: "Leave blank if there is no fixed end date",
         required: false,
       });
-      durationInput.options[0].textContent = "No fixed end date";
       const durationLabel = durationInput.previousElementSibling;
       const updateDurationVisibility = () => {
         const showDuration = categoryField.value === "BNPL";

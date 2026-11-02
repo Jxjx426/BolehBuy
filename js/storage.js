@@ -1,6 +1,7 @@
 import {
   addMonthsToDate,
   dateAfterDays,
+  isValidDurationMonths,
   isValidDate,
   localDateString,
 } from "./calculations.js";
@@ -113,8 +114,7 @@ export function validateSavedRecords(value) {
       const hasLifecycle = lifecycleFields.some((field) => Object.hasOwn(record, field));
       if (!hasLifecycle) return true;
       return record.category === "BNPL" &&
-        Number.isInteger(record.durationMonths) &&
-        [3, 6, 12, 24].includes(record.durationMonths) &&
+        isValidDurationMonths(record.durationMonths) &&
         isValidDate(record.startDate) &&
         isValidDate(record.endDate) &&
         record.endDate === addMonthsToDate(record.startDate, record.durationMonths) &&
@@ -197,7 +197,7 @@ export function createPurchaseRecord(purchase, id) {
 
   if (
     purchase.paymentMethod !== "installment" ||
-    ![3, 6, 12, 24].includes(purchase.duration) ||
+    !isValidDurationMonths(purchase.duration) ||
     !Number.isFinite(purchase.monthlyInstallment) ||
     purchase.monthlyInstallment <= 0 ||
     !isValidDate(purchase.confirmationDate || localDateString())

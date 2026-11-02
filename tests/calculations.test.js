@@ -44,6 +44,39 @@ test("zero-interest instalments preserve the existing no-fee calculation", () =>
   assert.equal(impact.monthlyInstallment, 200);
 });
 
+test("an explicit provider quote drives monthly commitment and quoted total takes precedence", () => {
+  const impact = calculatePurchaseImpact(records, {
+    name: "Laptop",
+    price: 360,
+    paymentMethod: "installment",
+    duration: 6,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 63,
+    quotedTotalInstallmentPayment: 378,
+  }, referenceDate);
+
+  assert.equal(impact.monthlyInstallment, 63);
+  assert.equal(impact.totalPurchaseCost, 378);
+  assert.equal(impact.newCommitments, 163);
+  assert.equal(impact.estimatedRemaining, 1637);
+});
+
+test("a quoted monthly amount is not derived from cash price or guessed duration", () => {
+  const impact = calculatePurchaseImpact(records, {
+    name: "Laptop",
+    price: 360,
+    paymentMethod: "installment",
+    duration: 6,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 63,
+  }, referenceDate);
+
+  assert.equal(impact.monthlyInstallment, 63);
+  assert.equal(impact.totalPurchaseCost, 378);
+});
+
 test("all supported instalment durations include flat interest for the selected term", () => {
   const expected = new Map([
     [3, [15, 1235, 411.67]],
