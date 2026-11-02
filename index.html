@@ -118,7 +118,6 @@
             <section class="panel spending-panel" aria-labelledby="spending-title">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow small-eyebrow">A QUICK LOOK</p>
                   <h2 id="spending-title">Spending overview</h2>
                 </div>
                 <span class="text-button" data-current-month></span>
@@ -145,7 +144,6 @@
             <section class="panel payments-panel" aria-labelledby="payments-title">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow small-eyebrow">COMING UP</p>
                   <h2 id="payments-title">Upcoming payments</h2>
                 </div>
                 <div class="panel-actions"><button class="small-link" type="button" data-add="payment">+ Add payment</button><button class="small-link" type="button" data-manage="payment">Manage <span aria-hidden="true">→</span></button></div>
@@ -158,7 +156,6 @@
           <section class="panel breakdown-panel" aria-labelledby="breakdown-title">
             <div class="panel-heading breakdown-heading">
               <div>
-                <p class="eyebrow small-eyebrow">THE REGULARS</p>
                 <h2 id="breakdown-title">BNPL & bill breakdown</h2>
               </div>
             </div>
@@ -184,10 +181,9 @@
           <section class="panel checkout-scanner-panel" aria-labelledby="checkout-scanner-title">
             <div class="scanner-heading">
               <div>
-                <p class="eyebrow small-eyebrow">A QUICK CHECK BEFORE CHECKOUT</p>
                 <h2 id="checkout-scanner-title">Scan Before You Buy</h2>
                 <p class="section-copy">Upload a checkout screenshot or paste product details. Let AI read the numbers before you commit.</p>
-                <p class="scanner-privacy-note">Use redacted checkout details only. Do not include card, account, password or IC information; screenshots are sent to Gemini for extraction.</p>
+                <p class="scanner-privacy-note">🔒 Don't upload card numbers or IC details.</p>
               </div>
               <span class="scanner-sparkle" aria-hidden="true">✧</span>
             </div>
@@ -221,7 +217,6 @@
           <div class="simulator-layout">
             <div class="simulator-left-column">
               <section class="panel form-panel" aria-labelledby="purchase-form-title">
-                <p class="eyebrow small-eyebrow">LET’S THINK IT THROUGH</p>
                 <h2 id="purchase-form-title">What are you eyeing?</h2>
                 <p class="section-copy">Add a few details to see how this purchase might fit into your month.</p>
                 <form class="purchase-form" id="simulator-form" novalidate>
@@ -261,8 +256,6 @@
                     <label for="additional-fees">Additional Fees (RM)</label>
                     <div class="input-with-prefix"><span>RM</span><input id="additional-fees" name="additional-fees" data-extraction-field="processingFee" type="number" min="0" max="1000000" step="any" inputmode="decimal" value="0" required /></div>
                     <small class="extraction-field-status" data-extraction-status="processingFee" hidden></small>
-                    <p class="instalment-estimate-note">Estimates only. Actual interest, fees and repayment methods vary by provider. This is an estimated flat-rate calculation, not a provider APR quote.</p>
-                    <p class="instalment-estimate-note">A quoted monthly instalment is used for the commitment amount. A quoted total payment takes precedence over the estimated flat-rate total.</p>
                   </div>
                   <p class="simulator-form-error" id="simulator-form-error" role="alert" hidden></p>
                   <button class="primary-button" type="submit">Calculate Impact <span aria-hidden="true">→</span></button>
