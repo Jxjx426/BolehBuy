@@ -1,4 +1,5 @@
 import {
+  addMonthsToDate,
   byDateAscending,
   currency,
   currentMonthExpenses,
@@ -258,7 +259,9 @@ function renderCommitmentBreakdown() {
 
   commitments.forEach((record) => {
     const active = isActiveCommitment(record);
-    const expired = record.endDate && record.endDate < localDateString();
+    const completed = record.status === "completed" ||
+      Boolean(record.endDate && record.endDate < localDateString());
+    const startsLater = Boolean(record.startDate && record.startDate > localDateString());
     const item = createElement("article", `commitment-item${record.category === "BNPL" ? " commitment-bnpl" : ""}${!active ? " commitment-inactive" : ""}`);
     const symbol = createElement("span", "commitment-symbol", record.category === "BNPL" ? "↻" : record.category === "Bills" ? "▯" : "♡");
     symbol.setAttribute("aria-hidden", "true");
@@ -268,10 +271,12 @@ function renderCommitmentBreakdown() {
       createElement("span", "commitment-type", record.category),
     );
     if (record.durationMonths) {
-      details.append(createElement(
-        "span",
-        "commitment-status",
-        expired ? "Expired" : record.status === "completed" ? "Completed" : `${record.durationMonths}-month plan · ends ${formatDate(record.endDate, { day: "numeric", month: "short", year: "numeric" })}`,
+      details.append(createElement("span", `commitment-status${completed ? " is-completed" : ""}`,
+        completed
+          ? "Completed"
+          : startsLater
+            ? `Starts ${formatDate(record.startDate, { month: "short", year: "numeric" })}`
+            : `Ends ${formatDate(record.endDate, { month: "short", year: "numeric" })}`,
       ));
     }
     item.append(
@@ -492,7 +497,23 @@ function renderRecordForm(type, record = null) {
       values: CATEGORIES[type],
       value: record?.category ?? CATEGORIES[type][0],
     });
-    if (record?.durationMonths) categoryField.disabled = true;
+    if (type === "commitment") {
+      const durationInput = addFormField(form, "Duration (months)", "durationMonths", "select", {
+        values: ["", "3", "6", "12", "24"],
+        value: record?.durationMonths ? String(record.durationMonths) : "",
+        required: false,
+      });
+      durationInput.options[0].textContent = "No fixed end date";
+      const durationLabel = durationInput.previousElementSibling;
+      const updateDurationVisibility = () => {
+        const showDuration = categoryField.value === "BNPL";
+        durationLabel.hidden = !showDuration;
+        durationInput.hidden = !showDuration;
+        durationInput.disabled = !showDuration;
+      };
+      categoryField.addEventListener("change", updateDurationVisibility);
+      updateDurationVisibility();
+    }
   }
 
   addFormField(form, "Amount (RM)", "amount", "number", {
@@ -528,7 +549,7 @@ function renderRecordForm(type, record = null) {
     const formData = new FormData(form);
     const name = String(formData.get("name") ?? "").trim();
     const amount = Number(formData.get("amount"));
-    const category = type === "income" ? "Income" : record?.category ?? String(formData.get("category") ?? "");
+    const category = type === "income" ? "Income" : String(formData.get("category") ?? "");
     const date = type === "expense" ? String(formData.get("date") ?? "") : null;
     const dueDate = type === "commitment" || type === "payment"
       ? String(formData.get("dueDate") ?? "") || null
@@ -545,6 +566,20 @@ function renderRecordForm(type, record = null) {
       return;
     }
 
+    const durationMonths = type === "commitment" && category === "BNPL"
+      ? Number(formData.get("durationMonths")) || null
+      : null;
+    const lifecycle = durationMonths
+      ? {
+        startDate: record?.durationMonths ? record.startDate : localDateString(),
+        durationMonths,
+        endDate: addMonthsToDate(
+          record?.durationMonths ? record.startDate : localDateString(),
+          durationMonths,
+        ),
+        status: record?.durationMonths ? record.status ?? "active" : "active",
+      }
+      : {};
     const nextRecord = {
       id: record?.id ?? (window.crypto?.randomUUID?.() ?? `record-${Date.now()}-${Math.random().toString(16).slice(2)}`),
       type,
@@ -553,12 +588,7 @@ function renderRecordForm(type, record = null) {
       amount: Math.round(amount * 100) / 100,
       date,
       dueDate,
-      ...(record?.durationMonths ? {
-        startDate: record.startDate,
-        durationMonths: record.durationMonths,
-        endDate: record.endDate,
-        status: record.status,
-      } : {}),
+      ...lifecycle,
     };
     const nextRecords = record
       ? records.map((entry) => entry.id === record.id ? nextRecord : entry)

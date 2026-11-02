@@ -113,12 +113,12 @@ export function validateSavedRecords(value) {
       const hasLifecycle = lifecycleFields.some((field) => Object.hasOwn(record, field));
       if (!hasLifecycle) return true;
       return record.category === "BNPL" &&
-        isValidDate(record.startDate) &&
         Number.isInteger(record.durationMonths) &&
         [3, 6, 12, 24].includes(record.durationMonths) &&
+        isValidDate(record.startDate) &&
         isValidDate(record.endDate) &&
         record.endDate === addMonthsToDate(record.startDate, record.durationMonths) &&
-        ["active", "completed"].includes(record.status);
+        (record.status === undefined || ["active", "completed"].includes(record.status));
     }
     if (record.type === "expense") {
       return CATEGORIES.expense.includes(record.category) && isValidDate(record.date);

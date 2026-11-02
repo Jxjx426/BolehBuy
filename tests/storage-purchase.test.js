@@ -83,6 +83,26 @@ test("legacy version-1 commitments remain ongoing without guessed dates", () => 
   });
 });
 
+test("duration metadata is optional, but provided end dates must match the selected term", () => {
+  const record = {
+    id: "term-bnpl",
+    type: "commitment",
+    name: "Course fee",
+    category: "BNPL",
+    amount: 50,
+    date: null,
+    dueDate: null,
+    startDate: "2026-01-31",
+    durationMonths: 3,
+    endDate: "2026-04-30",
+  };
+  assert.deepEqual(validateSavedRecords({ version: 1, records: [record] }), [record]);
+  assert.throws(() => validateSavedRecords({
+    version: 1,
+    records: [{ ...record, endDate: "2026-04-29" }],
+  }), /invalid/);
+});
+
 test("completed and expired BNPL plans are excluded but remain valid historical records", () => {
   const plans = [
     { id: "active", type: "commitment", name: "Active", category: "BNPL", amount: 30, date: null, dueDate: null, startDate: "2026-01-01", durationMonths: 3, endDate: "2026-04-01", status: "active" },
