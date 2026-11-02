@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  calculateCommitmentMetrics,
   calculatePurchaseComparison,
   calculatePurchaseImpact,
+  getActiveBnplSummary,
+  getTotals,
 } from "../js/calculations.js";
 
 const referenceDate = new Date("2026-11-15T12:00:00");
@@ -109,4 +112,67 @@ test("instalment calculations reject missing, negative and excessive input value
       RangeError,
     );
   }
+});
+
+test("commitment metrics show the before and after ratios and ignore a one-time purchase", () => {
+  const impact = calculate(12);
+  const metrics = calculateCommitmentMetrics(impact);
+
+  assert.equal(metrics.existingMonthlyCommitments, 100);
+  assert.equal(metrics.monthlyInstalment, 100);
+  assert.equal(metrics.totalMonthlyCommitments, 200);
+  assert.equal(metrics.commitmentRatioBefore, 5);
+  assert.equal(metrics.commitmentRatioAfter, 10);
+
+  const payFull = calculateCommitmentMetrics(calculatePurchaseImpact(records, {
+    name: "Laptop",
+    price: 1200,
+    paymentMethod: "pay-full",
+    duration: null,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+  }, referenceDate));
+  assert.equal(payFull.monthlyInstalment, 0);
+  assert.equal(payFull.totalMonthlyCommitments, 100);
+});
+
+test("commitment metrics preserve missing income or commitment data", () => {
+  const noIncome = calculatePurchaseImpact([
+    { type: "commitment", amount: 100 },
+  ], {
+    name: "Laptop", price: 1200, paymentMethod: "installment", duration: 12,
+    annualFlatInterestRate: 0, additionalFees: 0,
+  }, referenceDate);
+  const noCommitments = calculatePurchaseImpact([
+    { type: "income", amount: 2000 },
+  ], {
+    name: "Laptop", price: 1200, paymentMethod: "installment", duration: 12,
+    annualFlatInterestRate: 0, additionalFees: 0,
+  }, referenceDate);
+
+  assert.deepEqual(calculateCommitmentMetrics(noIncome), {
+    existingMonthlyCommitments: 100,
+    monthlyInstalment: 100,
+    totalMonthlyCommitments: 200,
+    commitmentRatioBefore: null,
+    commitmentRatioAfter: null,
+  });
+  assert.equal(calculateCommitmentMetrics(noCommitments).existingMonthlyCommitments, null);
+  assert.equal(calculateCommitmentMetrics(noCommitments).totalMonthlyCommitments, null);
+});
+
+test("active BNPL summary excludes bills, completed plans, future plans and expired plans", () => {
+  const commitments = [
+    { type: "commitment", category: "BNPL", amount: 30, startDate: "2026-10-01", endDate: "2026-12-01", status: "active" },
+    { type: "commitment", category: "BNPL", amount: 40, startDate: "2026-01-01", endDate: "2026-10-01", status: "active" },
+    { type: "commitment", category: "BNPL", amount: 50, startDate: "2026-01-01", endDate: "2026-12-01", status: "completed" },
+    { type: "commitment", category: "Bills", amount: 100 },
+    { type: "commitment", category: "BNPL", amount: 60, startDate: "2026-12-01", endDate: "2027-03-01", status: "active" },
+  ];
+
+  assert.deepEqual(getActiveBnplSummary(commitments, referenceDate), {
+    count: 1,
+    monthlyAmount: 30,
+  });
+  assert.equal(getTotals(commitments, referenceDate, referenceDate).commitments, 130);
 });

@@ -44,10 +44,6 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Z" /><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2" /></svg>
             <span>BolehBuy? Simulator</span>
           </a>
-          <a class="nav-link" href="#scam-checker" data-page="scam-checker">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 7v5c0 5-3.7 8-9 9-5.3-1-9-4-9-9V7l9-4Z" /><path d="M12 8v5m0 3h.01" /></svg>
-            <span>Scam Checker</span>
-          </a>
         </nav>
 
         <div class="sidebar-note">
@@ -165,8 +161,8 @@
                 <p class="eyebrow small-eyebrow">THE REGULARS</p>
                 <h2 id="breakdown-title">BNPL & bill breakdown</h2>
               </div>
-              <span class="breakdown-caption">Your monthly commitments at a glance</span>
             </div>
+            <p class="bnpl-summary" data-bnpl-summary></p>
             <div class="commitment-list" data-record-list="commitment"></div>
             <div class="breakdown-actions">
               <button type="button" class="small-link" data-add="commitment">+ Add commitment</button>
@@ -215,85 +211,64 @@
                     <input id="annual-interest-rate" name="annual-interest-rate" type="number" min="0" max="100" step="any" inputmode="decimal" value="0" required />
                     <label for="additional-fees">Additional Fees (RM)</label>
                     <div class="input-with-prefix"><span>RM</span><input id="additional-fees" name="additional-fees" type="number" min="0" max="1000000" step="any" inputmode="decimal" value="0" required /></div>
-                    <p class="form-note instalment-estimate-note">Estimates only. Actual interest, fees and repayment methods vary by provider.</p>
+                    <p class="instalment-estimate-note">Estimates only. Actual interest, fees and repayment methods vary by provider. This is an estimated flat-rate calculation, not a provider APR quote.</p>
                   </div>
                   <p class="simulator-form-error" id="simulator-form-error" role="alert" hidden></p>
                   <button class="primary-button" type="submit">Calculate Impact <span aria-hidden="true">→</span></button>
-                  <p class="form-note">This uses an estimated flat-rate calculation, not a provider’s exact APR or repayment method. Your entries aren’t saved.</p>
                 </form>
-              </section>
-              <section class="panel result-panel advisor-panel" id="ai-advisor" aria-labelledby="advisor-title">
-                <div class="result-heading">
-                  <span class="result-icon advisor-result-icon" aria-hidden="true">✳</span>
-                  <div><p class="eyebrow small-eyebrow">A THOUGHTFUL SECOND OPINION</p><h2 id="advisor-title">AI Purchase Advisor</h2></div>
-                </div>
-                <p class="advisor-subtitle">Get a second opinion before you tap buy.</p>
-                <button class="primary-button advisor-button" type="button" id="analyse-purchase" disabled>Analyse My Purchase <span aria-hidden="true">→</span></button>
-                <p class="advisor-status" id="advisor-status" role="status" aria-live="polite"></p>
-                <div class="advisor-loading" id="advisor-loading" role="status" aria-live="polite" hidden>
-                  <span class="advisor-spinner" aria-hidden="true"></span>
-                  <span>Taking a closer look at your numbers…</span>
-                </div>
-                <div class="advisor-error" id="advisor-error" role="alert" hidden></div>
-                <button class="secondary-button advisor-retry" type="button" id="retry-analysis" hidden>Retry analysis</button>
-                <div class="advisor-result" id="advisor-result" aria-live="polite" hidden>
-                  <div class="advisor-result-grid" id="advisor-result-content"></div>
-                </div>
-                <p class="advisor-disclaimer">AI-generated insights are for educational purposes only and are not financial advice.</p>
               </section>
             </div>
             <div class="simulator-results">
-              <section class="panel result-panel" aria-live="polite" aria-labelledby="purchase-impact-title">
-                <div class="result-heading"><span class="result-icon" aria-hidden="true">◷</span><div><p class="eyebrow small-eyebrow">PURCHASE IMPACT</p><h2 id="purchase-impact-title">Your monthly picture</h2></div></div>
+              <section class="panel result-panel commitment-impact-card" aria-live="polite" aria-labelledby="purchase-impact-title">
+                <div class="result-heading"><span class="result-icon" aria-hidden="true">↻</span><h2 id="purchase-impact-title">Your Commitments After This</h2></div>
                 <p class="placeholder-copy" id="simulator-empty">Enter a purchase to see how it could affect your monthly money.</p>
                 <div class="impact-result" id="simulator-result" hidden>
-                  <div class="impact-highlights">
-                    <div class="impact-highlight impact-highlight-installment"><span>Monthly Instalment</span><strong id="impact-installment"></strong></div>
-                    <div class="impact-highlight impact-highlight-remaining"><span>Remaining Cash After Purchase</span><strong id="impact-remaining"></strong></div>
+                  <div class="commitment-metric-grid">
+                    <div class="commitment-metric"><span>Existing Monthly Commitments</span><strong id="impact-existing-commitments"></strong></div>
+                    <div class="commitment-metric commitment-metric-new"><span>New Monthly Instalment</span><strong id="impact-installment"></strong></div>
+                    <div class="commitment-metric commitment-metric-total"><span>New Total Monthly Commitments</span><strong id="impact-new-total"></strong></div>
+                    <div class="commitment-metric commitment-metric-ratio">
+                      <span>Monthly Commitment Ratio</span>
+                      <div><strong id="impact-ratio-before"></strong><span>before</span><strong id="impact-ratio-after"></strong><span>after</span></div>
+                    </div>
                   </div>
-                  <div class="assessment" id="impact-assessment">
-                    <strong id="assessment-title"></strong>
-                  </div>
-                </div>
-              </section>
-              <section class="panel result-panel translator-panel" id="cost-translator" aria-labelledby="translator-title" hidden>
-                <div class="result-heading"><span class="result-icon peach-result" aria-hidden="true">♡</span><div><p class="eyebrow small-eyebrow">A DIFFERENT WAY TO SEE IT</p><h2 id="translator-title">Real Cost Translator</h2></div></div>
-                <p class="translator-intro">A purchase of <strong id="translator-purchase-price"></strong> is approximately:</p>
-                <div class="translator-list">
-                  <article class="translator-row" data-translator-row="rice">
-                    <span class="translator-emoji" aria-hidden="true">🍚</span><div class="translator-detail"><strong>Bowls of Mixed Rice</strong><span>RM 12 per bowl</span></div>
-                    <strong class="translator-equivalent" data-equivalent="rice"></strong>
-                  </article>
-                  <article class="translator-row" data-translator-row="bubbleTea">
-                    <span class="translator-emoji" aria-hidden="true">🧋</span><div class="translator-detail"><strong>Cups of Bubble Tea</strong><span>RM 15 per cup</span></div>
-                    <strong class="translator-equivalent" data-equivalent="bubbleTea"></strong>
-                  </article>
-                  <article class="translator-row" data-translator-row="transport">
-                    <span class="translator-emoji" aria-hidden="true">🚆</span><div class="translator-detail"><strong>RapidKL Rides</strong><span>RM 4 per ride</span></div>
-                    <strong class="translator-equivalent" data-equivalent="transport"></strong>
-                  </article>
+                  <p class="commitment-ratio-note">Compares recorded monthly commitments with recorded income; it is not an affordability score.</p>
                 </div>
               </section>
               <section class="panel result-panel compare-panel" id="simulator-comparison" aria-labelledby="comparison-title" hidden>
-                <div class="result-heading"><span class="result-icon lavender-result" aria-hidden="true">↔</span><div><p class="eyebrow small-eyebrow">A MOMENT TO COMPARE</p><h2 id="comparison-title">Should You Buy It?</h2></div></div>
-                <div class="decision-comparison">
-                  <article class="decision-card decision-buy" aria-labelledby="buy-card-title">
-                    <p class="decision-label" id="buy-card-title">Buy It</p>
-                    <h3 id="comparison-buy-name"></h3>
-                    <div class="decision-metric"><span id="comparison-buy-price-label">Purchase price</span><strong id="comparison-buy-price"></strong></div>
-                    <div class="decision-metric"><span>Remaining cash after purchase</span><strong id="comparison-buy-remaining"></strong></div>
-                  </article>
-                  <article class="decision-card decision-wait" aria-labelledby="wait-card-title">
-                    <p class="decision-label" id="wait-card-title">Don’t Buy It</p>
-                    <div class="decision-metric"><span id="comparison-retained-label">Money kept</span><strong id="comparison-retained"></strong></div>
-                    <div class="decision-metric"><span>Potential savings (3 / 6 months)</span><strong id="comparison-savings"></strong></div>
-                  </article>
+                <div class="result-heading"><span class="result-icon lavender-result" aria-hidden="true">↔</span><h2 id="comparison-title">What You’d Have Either Way</h2></div>
+                <div class="comparison-table" role="table" aria-label="Purchase scenario comparison">
+                  <div class="comparison-table-header" role="row"><span role="columnheader">Scenario</span><span role="columnheader">Estimated Remaining Money</span><span role="columnheader">Monthly Commitments</span></div>
+                  <div class="comparison-table-row" role="row"><strong role="rowheader">Don’t Buy</strong><strong id="comparison-dont-buy-remaining"></strong><strong id="comparison-dont-buy-commitments"></strong></div>
+                  <div class="comparison-table-row comparison-buy-row" role="row"><strong role="rowheader">Buy</strong><strong id="comparison-buy-remaining"></strong><strong id="comparison-buy-commitments"></strong></div>
+                </div>
+                <p class="comparison-summary" id="comparison-summary"></p>
+              </section>
+              <section class="panel result-panel advisor-panel" id="ai-advisor" aria-labelledby="advisor-title" hidden>
+                <div class="result-heading"><span class="result-icon advisor-result-icon" aria-hidden="true">✳</span><h2 id="advisor-title">AI’s Second Opinion</h2></div>
+                <p class="advisor-status" id="advisor-status" role="status" aria-live="polite"></p>
+                <div class="advisor-loading" id="advisor-loading" role="status" aria-live="polite" hidden><span class="advisor-spinner" aria-hidden="true"></span><span>Taking a closer look at your numbers…</span></div>
+                <div class="advisor-error" id="advisor-error" role="alert" hidden></div>
+                <button class="secondary-button advisor-retry" type="button" id="retry-analysis" hidden>Retry analysis</button>
+                <div class="advisor-result" id="advisor-result" aria-live="polite" hidden>
+                  <div class="advisor-verdict-line"><span>Verdict</span><strong id="advisor-verdict-label"></strong><p id="advisor-verdict"></p></div>
+                  <div class="advisor-insight-line"><strong>Key Risk</strong><p id="advisor-key-risk"></p></div>
+                  <div class="advisor-insight-line"><strong>Recommended Action</strong><p id="advisor-recommended-action"></p></div>
+                </div>
+              </section>
+              <section class="panel result-panel translator-panel" id="cost-translator" aria-labelledby="translator-title" hidden>
+                <div class="result-heading"><span class="result-icon peach-result" aria-hidden="true">♡</span><h2 id="translator-title">Real Cost Translator</h2></div>
+                <p class="translator-intro">Illustrative estimates for a purchase of <strong id="translator-purchase-price"></strong>:</p>
+                <div class="translator-list">
+                  <article class="translator-row" data-translator-row="rice"><span class="translator-emoji" aria-hidden="true">🍚</span><div class="translator-detail"><strong>Bowls of Mixed Rice</strong><span>Illustrative: RM 12 each</span></div><strong class="translator-equivalent" data-equivalent="rice"></strong></article>
+                  <article class="translator-row" data-translator-row="bubbleTea"><span class="translator-emoji" aria-hidden="true">🧋</span><div class="translator-detail"><strong>Cups of Bubble Tea</strong><span>Illustrative: RM 15 each</span></div><strong class="translator-equivalent" data-equivalent="bubbleTea"></strong></article>
+                  <article class="translator-row" data-translator-row="transport"><span class="translator-emoji" aria-hidden="true">🚆</span><div class="translator-detail"><strong>RapidKL Rides</strong><span>Illustrative: RM 4 each</span></div><strong class="translator-equivalent" data-equivalent="transport"></strong></article>
                 </div>
               </section>
               <section class="panel result-panel purchase-decision-panel" id="purchase-decision" aria-labelledby="purchase-decision-title" hidden>
                 <div class="result-heading">
                   <span class="result-icon purchase-decision-icon" aria-hidden="true">♡</span>
-                  <div><p class="eyebrow small-eyebrow">YOUR NEXT STEP</p><h2 id="purchase-decision-title">Your Purchase Decision</h2></div>
+                  <h2 id="purchase-decision-title">Your Purchase Decision</h2>
                 </div>
                 <p class="purchase-decision-copy">You've reviewed the numbers. If you've decided to go ahead, add this purchase to your Dashboard.</p>
                 <button class="primary-button purchase-decision-button" id="open-purchase-confirmation" type="button">
@@ -312,7 +287,7 @@
                     <div id="confirm-fees-row" hidden><dt>Additional fees</dt><dd id="confirm-fees"></dd></div>
                   </dl>
                   <p class="purchase-destination" id="purchase-destination"></p>
-                  <p class="purchase-duration-note" id="purchase-duration-note" hidden>Dashboard commitments store the monthly amount, but the current record format does not save the instalment duration or end date. Keep the provider’s repayment schedule separately.</p>
+                  <p class="purchase-duration-note" id="purchase-duration-note" hidden>The Dashboard will record this active BNPL plan, its selected term and calculated end date.</p>
                   <p class="purchase-save-error" id="purchase-save-error" role="alert" hidden></p>
                   <div class="purchase-confirmation-actions">
                     <button class="primary-button" id="confirm-add-purchase" type="button">Confirm &amp; Add</button>
@@ -324,11 +299,12 @@
                   <a class="secondary-button purchase-dashboard-link" href="#dashboard" data-page="dashboard"><span>View Dashboard</span><span aria-hidden="true">→</span></a>
                 </div>
               </section>
+              <p class="simulator-shared-footnote">Instalment figures are estimates; actual provider terms and unrecorded spending may vary. Illustrative comparisons are not exact prices. AI-generated insights are not financial advice.</p>
             </div>
           </div>
         </section>
 
-        <section class="page" id="scam-checker" data-page-panel="scam-checker" aria-labelledby="scam-title" hidden>
+        <section class="page" id="scam-checker" data-page-panel="scam-checker" aria-labelledby="scam-title" hidden inert aria-hidden="true">
           <div class="welcome-row page-intro">
             <div>
               <p class="eyebrow">WHEN SOMETHING FEELS OFF <span class="eyebrow-star">✳</span></p>

@@ -45,9 +45,55 @@ export function currentMonthExpenses(records, date = new Date()) {
   return records.filter((record) => record.type === "expense" && record.date.startsWith(month));
 }
 
-export function getTotals(records, date = new Date()) {
+export function addMonthsToDate(dateString, months) {
+  if (!isValidDate(dateString) || !Number.isInteger(months) || months < 0) {
+    throw new RangeError("Enter a valid date and month offset.");
+  }
+  const [year, month, day] = dateString.split("-").map(Number);
+  const targetMonth = month - 1 + months;
+  const lastDay = new Date(year, targetMonth + 1, 0).getDate();
+  const targetDate = new Date(year, targetMonth, Math.min(day, lastDay));
+  return localDateString(targetDate);
+}
+
+export function isActiveCommitment(record, date = new Date()) {
+  if (record.type !== "commitment" || record.status === "completed") return false;
+  if (record.startDate && record.startDate > localDateString(date)) return false;
+  return !record.endDate || record.endDate >= localDateString(date);
+}
+
+export function getActiveCommitments(records, date = new Date()) {
+  return records.filter((record) => isActiveCommitment(record, date));
+}
+
+export function getActiveBnplSummary(records, date = new Date()) {
+  const plans = getActiveCommitments(records, date).filter((record) => record.category === "BNPL");
+  return { count: plans.length, monthlyAmount: sumAmount(plans) };
+}
+
+export function calculateCommitmentMetrics(impact) {
+  const hasCommitmentData = impact.hasCommitmentRecords;
+  const hasIncomeData = impact.hasIncomeRecords && impact.income > 0;
+  const existingMonthlyCommitments = hasCommitmentData ? impact.commitments : null;
+  const totalMonthlyCommitments = hasCommitmentData ? impact.newCommitments : null;
+  const monthlyInstalment = impact.paymentMethod === "pay-full" ? 0 : impact.monthlyInstallment;
+
+  return {
+    existingMonthlyCommitments,
+    monthlyInstalment,
+    totalMonthlyCommitments,
+    commitmentRatioBefore: hasCommitmentData && hasIncomeData
+      ? roundCurrency((impact.commitments / impact.income) * 100)
+      : null,
+    commitmentRatioAfter: hasCommitmentData && hasIncomeData
+      ? roundCurrency((impact.newCommitments / impact.income) * 100)
+      : null,
+  };
+}
+
+export function getTotals(records, date = new Date(), asOfDate = new Date()) {
   const income = sumAmount(records.filter((record) => record.type === "income"));
-  const commitments = sumAmount(records.filter((record) => record.type === "commitment"));
+  const commitments = sumAmount(getActiveCommitments(records, asOfDate));
   const expenses = sumAmount(currentMonthExpenses(records, date));
   return { income, commitments, expenses, remaining: income - commitments - expenses };
 }

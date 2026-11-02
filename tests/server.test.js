@@ -19,33 +19,31 @@ const validPayload = {
     existingMonthlyCommitments: 680,
     currentMonthExpenses: 742,
     remainingBeforePurchase: 778,
-    newMonthlyCommitments: 880,
     estimatedRemainingAfterPurchase: 578,
+    newTotalMonthlyCommitments: 880,
+    commitmentRatioBefore: 30.91,
+    commitmentRatioAfter: 40,
     recordsComplete: true,
     missingRecords: [],
   },
+  comparison: {
+    buyEstimatedRemaining: 578,
+    dontBuyEstimatedRemaining: 778,
+    buyMonthlyCommitments: 880,
+    dontBuyMonthlyCommitments: 680,
+  },
   spendingAssessment: {
     title: "Be Careful",
-    reason: "Your estimated remaining money is below 20% of your income.",
+    reason: "Your estimated remaining money is below the available margin.",
     level: "careful",
-  },
-  comparison: {
-    buyRemaining: 578,
-    dontBuyRemaining: 778,
-    moneyRetained: 200,
-    moneyRetainedUnit: "per month",
-    potentialSavings3Months: 600,
-    potentialSavings6Months: 1200,
   },
 };
 
 const validAnalysis = {
   verdictLabel: "Be careful",
   verdict: "The payment leaves less room for other plans this month.",
-  positive: "Your recorded budget gives a useful starting point.",
-  watchOut: "Unrecorded expenses could make the plan tighter.",
-  suggestion: "Check the payment dates against your regular bills.",
-  question: "Would an unexpected cost change how this feels?",
+  keyRisk: "Unrecorded expenses could make the plan tighter.",
+  recommendedAction: "Check the payment dates against your regular bills.",
 };
 
 let server;
@@ -154,14 +152,12 @@ test("valid summary reaches Gemini with structured output and returns validated 
   assert.equal(request.model, "test-flash");
   assert.equal(request.config.responseMimeType, "application/json");
   assert.match(request.config.systemInstruction, /source of truth/);
-  assert.match(request.config.systemInstruction, /one short sentence/);
+  assert.match(request.config.systemInstruction, /under 180 characters/);
   assert.deepEqual(request.config.responseSchema.required, [
     "verdictLabel",
     "verdict",
-    "positive",
-    "watchOut",
-    "suggestion",
-    "question",
+    "keyRisk",
+    "recommendedAction",
   ]);
   assert.equal(request.config.httpOptions.timeout, 20_000);
   assert.equal(request.config.httpOptions.retryOptions.attempts, 1);
@@ -169,28 +165,26 @@ test("valid summary reaches Gemini with structured output and returns validated 
   assert.doesNotMatch(JSON.stringify(body), /test-key/);
 });
 
-test("incomplete records stay null in the request rather than being presented as zero", async () => {
+test("incomplete records are rejected before reaching Gemini", async () => {
   const incompletePayload = structuredClone(validPayload);
   incompletePayload.finances.monthlyIncome = null;
   incompletePayload.finances.remainingBeforePurchase = null;
-  incompletePayload.finances.newMonthlyCommitments = null;
   incompletePayload.finances.estimatedRemainingAfterPurchase = null;
+  incompletePayload.finances.newTotalMonthlyCommitments = null;
+  incompletePayload.finances.commitmentRatioBefore = null;
+  incompletePayload.finances.commitmentRatioAfter = null;
   incompletePayload.finances.recordsComplete = false;
   incompletePayload.finances.missingRecords = ["monthly income"];
-  incompletePayload.spendingAssessment = {
-    title: "Insufficient Data",
-    reason: "Add records for monthly income for a more complete assessment.",
-    level: "insufficient",
-  };
-  incompletePayload.comparison.buyRemaining = null;
-  incompletePayload.comparison.dontBuyRemaining = null;
-  let received;
+  incompletePayload.comparison.buyEstimatedRemaining = null;
+  incompletePayload.comparison.dontBuyEstimatedRemaining = null;
+  incompletePayload.comparison.dontBuyMonthlyCommitments = null;
+  let called = false;
   const origin = await startServer({
     apiKey: "test-key",
     aiClient: {
       models: {
-        generateContent: async (request) => {
-          received = JSON.parse(request.contents);
+        generateContent: async () => {
+          called = true;
           return { text: JSON.stringify(validAnalysis) };
         },
       },
@@ -203,10 +197,9 @@ test("incomplete records stay null in the request rather than being presented as
     body: JSON.stringify(incompletePayload),
   });
 
-  assert.equal(response.status, 200);
-  assert.equal(received.finances.monthlyIncome, null);
-  assert.deepEqual(received.finances.missingRecords, ["monthly income"]);
-  assert.equal(received.comparison.buyRemaining, null);
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "INVALID_REQUEST");
+  assert.equal(called, false);
 });
 
 test("malformed Gemini output and provider rate limits get safe errors", async () => {

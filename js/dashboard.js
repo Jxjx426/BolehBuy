@@ -4,7 +4,10 @@ import {
   currentMonthExpenses,
   dateAfterDays,
   formatDate,
+  getActiveBnplSummary,
+  getActiveCommitments,
   getTotals,
+  isActiveCommitment,
   isValidDate,
   localDateString,
   sumAmount,
@@ -89,6 +92,7 @@ function renderSummary(totals) {
 
   const incomeSources = records.filter((record) => record.type === "income");
   const commitments = records.filter((record) => record.type === "commitment");
+  const activeCommitments = getActiveCommitments(records);
   const expenses = currentMonthExpenses(records, selectedMonth);
   const selectedMonthName = selectedMonth.toLocaleDateString("en-MY", { month: "long" });
   document.querySelector('[data-summary-note="income"]').textContent = incomeSources.length
@@ -96,8 +100,8 @@ function renderSummary(totals) {
       ? incomeSources.map((record) => record.name).join(" + ")
       : `${incomeSources.length} income sources`
     : "No income sources yet";
-  document.querySelector('[data-summary-note="commitments"]').textContent = commitments.length
-    ? `${commitments.length} recurring ${commitments.length === 1 ? "payment" : "payments"}`
+  document.querySelector('[data-summary-note="commitments"]').textContent = activeCommitments.length
+    ? `${activeCommitments.length} active ${activeCommitments.length === 1 ? "commitment" : "commitments"}`
     : "No commitments yet";
   document.querySelector('[data-summary-note="expenses"]').textContent = expenses.length
     ? `${expenses.length} ${expenses.length === 1 ? "record" : "records"} in ${selectedMonthName}`
@@ -235,9 +239,17 @@ function renderMonthPicker() {
 function renderCommitmentBreakdown() {
   const container = document.querySelector('[data-record-list="commitment"]');
   container.replaceChildren();
+  const summary = getActiveBnplSummary(records);
+  const summaryText = `${summary.count} active BNPL ${summary.count === 1 ? "plan" : "plans"} · ${currency(summary.monthlyAmount)}/month`;
+  document.querySelector("[data-bnpl-summary]").textContent = summaryText;
   const commitments = records
     .filter((record) => record.type === "commitment")
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const priority = (record) => record.category === "BNPL"
+        ? isActiveCommitment(record) ? 0 : 2
+        : 1;
+      return priority(a) - priority(b) || a.name.localeCompare(b.name);
+    });
 
   if (!commitments.length) {
     container.append(createElement("p", "empty-state commitment-empty", "No monthly commitments yet. Add one to keep track of regular payments."));
@@ -245,13 +257,26 @@ function renderCommitmentBreakdown() {
   }
 
   commitments.forEach((record) => {
-    const item = createElement("div", "commitment-item");
+    const active = isActiveCommitment(record);
+    const expired = record.endDate && record.endDate < localDateString();
+    const item = createElement("article", `commitment-item${record.category === "BNPL" ? " commitment-bnpl" : ""}${!active ? " commitment-inactive" : ""}`);
     const symbol = createElement("span", "commitment-symbol", record.category === "BNPL" ? "↻" : record.category === "Bills" ? "▯" : "♡");
     symbol.setAttribute("aria-hidden", "true");
+    const details = createElement("div", "commitment-details");
+    details.append(
+      createElement("strong", "commitment-name", record.name),
+      createElement("span", "commitment-type", record.category),
+    );
+    if (record.durationMonths) {
+      details.append(createElement(
+        "span",
+        "commitment-status",
+        expired ? "Expired" : record.status === "completed" ? "Completed" : `${record.durationMonths}-month plan · ends ${formatDate(record.endDate, { day: "numeric", month: "short", year: "numeric" })}`,
+      ));
+    }
     item.append(
       symbol,
-      createElement("span", "commitment-name", record.name),
-      createElement("span", "commitment-type", record.category),
+      details,
     );
     const value = createElement("span", "commitment-value");
     value.append(document.createTextNode(currency(record.amount)));
@@ -381,7 +406,7 @@ function renderManager(type) {
               : type === "expense"
                 ? `${record.category} · ${formatDate(record.date, { day: "numeric", month: "short", year: "numeric" })}`
                 : type === "commitment"
-                  ? `${record.category}${record.dueDate ? ` · payment date ${formatDate(record.dueDate)}` : ""}`
+                  ? `${record.category}${record.dueDate ? ` · payment date ${formatDate(record.dueDate)}` : ""}${record.durationMonths ? ` · ${record.durationMonths} months · ends ${formatDate(record.endDate, { day: "numeric", month: "short", year: "numeric" })} · ${record.status === "completed" ? "completed" : isActiveCommitment(record) ? "active" : "expired"}` : ""}`
                   : "Monthly income",
           ),
         );
@@ -394,7 +419,14 @@ function renderManager(type) {
         const remove = createElement("button", "subtle-action delete-action", "Delete");
         remove.type = "button";
         remove.dataset.deleteRecord = record.id;
-        controls.append(amount, edit, remove);
+        controls.append(amount, edit);
+        if (type === "commitment" && record.durationMonths && record.status === "active") {
+          const complete = createElement("button", "subtle-action", "Mark complete");
+          complete.type = "button";
+          complete.dataset.completeRecord = record.id;
+          controls.append(complete);
+        }
+        controls.append(remove);
         row.append(details, controls);
         list.append(row);
       });
@@ -456,10 +488,11 @@ function renderRecordForm(type, record = null) {
   });
 
   if (type !== "income") {
-    addFormField(form, "Category", "category", "select", {
+    const categoryField = addFormField(form, "Category", "category", "select", {
       values: CATEGORIES[type],
       value: record?.category ?? CATEGORIES[type][0],
     });
+    if (record?.durationMonths) categoryField.disabled = true;
   }
 
   addFormField(form, "Amount (RM)", "amount", "number", {
@@ -495,7 +528,7 @@ function renderRecordForm(type, record = null) {
     const formData = new FormData(form);
     const name = String(formData.get("name") ?? "").trim();
     const amount = Number(formData.get("amount"));
-    const category = type === "income" ? "Income" : String(formData.get("category") ?? "");
+    const category = type === "income" ? "Income" : record?.category ?? String(formData.get("category") ?? "");
     const date = type === "expense" ? String(formData.get("date") ?? "") : null;
     const dueDate = type === "commitment" || type === "payment"
       ? String(formData.get("dueDate") ?? "") || null
@@ -520,6 +553,12 @@ function renderRecordForm(type, record = null) {
       amount: Math.round(amount * 100) / 100,
       date,
       dueDate,
+      ...(record?.durationMonths ? {
+        startDate: record.startDate,
+        durationMonths: record.durationMonths,
+        endDate: record.endDate,
+        status: record.status,
+      } : {}),
     };
     const nextRecords = record
       ? records.map((entry) => entry.id === record.id ? nextRecord : entry)
@@ -605,9 +644,21 @@ export function initializeDashboard(initialState) {
     const editButton = event.target.closest("[data-edit-record]");
     const deleteButton = event.target.closest("[data-delete-record]");
     const backButton = event.target.closest("[data-back-to-manager]");
+    const completeButton = event.target.closest("[data-complete-record]");
 
     if (newButton) renderRecordForm(newButton.dataset.newRecord);
     if (backButton) renderManager(backButton.dataset.backToManager);
+    if (completeButton) {
+      const target = records.find((item) => item.id === completeButton.dataset.completeRecord);
+      if (!target || !target.durationMonths || target.status !== "active") return;
+      const nextRecords = records.map((item) => item.id === target.id
+        ? { ...item, status: "completed" }
+        : item);
+      if (updateRecords(nextRecords)) {
+        setNotice("BNPL plan marked completed.");
+        renderManager("commitment");
+      }
+    }
     if (editButton) {
       const record = records.find((item) => item.id === editButton.dataset.editRecord);
       if (record) renderRecordForm(editButton.dataset.recordType, record);

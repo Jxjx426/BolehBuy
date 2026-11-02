@@ -1,4 +1,9 @@
-import { dateAfterDays, isValidDate, localDateString } from "./calculations.js";
+import {
+  addMonthsToDate,
+  dateAfterDays,
+  isValidDate,
+  localDateString,
+} from "./calculations.js";
 
 export const STORAGE_KEY = "bolehbuy-finances";
 export const TRANSLATOR_PRICES_KEY = "bolehbuy-cost-translator-prices";
@@ -80,7 +85,7 @@ function makeSampleRecords() {
   ];
 }
 
-function validateSavedRecords(value) {
+export function validateSavedRecords(value) {
   if (!value || value.version !== STORAGE_VERSION || !Array.isArray(value.records)) {
     throw new Error("Saved finance data has an unsupported format.");
   }
@@ -102,7 +107,19 @@ function validateSavedRecords(value) {
     }
 
     if (record.type === "income") return record.category === "Income";
-    if (record.type === "commitment") return CATEGORIES.commitment.includes(record.category);
+    if (record.type === "commitment") {
+      if (!CATEGORIES.commitment.includes(record.category)) return false;
+      const lifecycleFields = ["startDate", "durationMonths", "endDate", "status"];
+      const hasLifecycle = lifecycleFields.some((field) => Object.hasOwn(record, field));
+      if (!hasLifecycle) return true;
+      return record.category === "BNPL" &&
+        isValidDate(record.startDate) &&
+        Number.isInteger(record.durationMonths) &&
+        [3, 6, 12, 24].includes(record.durationMonths) &&
+        isValidDate(record.endDate) &&
+        record.endDate === addMonthsToDate(record.startDate, record.durationMonths) &&
+        ["active", "completed"].includes(record.status);
+    }
     if (record.type === "expense") {
       return CATEGORIES.expense.includes(record.category) && isValidDate(record.date);
     }
@@ -150,7 +167,7 @@ export function getRecords() {
 }
 
 export function createPurchaseRecord(purchase, id) {
-  const recordId = id || window.crypto?.randomUUID?.() ||
+  const recordId = id || globalThis.crypto?.randomUUID?.() ||
     `record-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   if (
     !purchase ||
@@ -182,11 +199,13 @@ export function createPurchaseRecord(purchase, id) {
     purchase.paymentMethod !== "installment" ||
     ![3, 6, 12, 24].includes(purchase.duration) ||
     !Number.isFinite(purchase.monthlyInstallment) ||
-    purchase.monthlyInstallment <= 0
+    purchase.monthlyInstallment <= 0 ||
+    !isValidDate(purchase.confirmationDate || localDateString())
   ) {
     throw new Error("The instalment details are invalid.");
   }
 
+  const startDate = purchase.confirmationDate || localDateString();
   return {
     id: recordId,
     type: "commitment",
@@ -195,5 +214,9 @@ export function createPurchaseRecord(purchase, id) {
     amount: Math.round(purchase.monthlyInstallment * 100) / 100,
     date: null,
     dueDate: null,
+    startDate,
+    durationMonths: purchase.duration,
+    endDate: addMonthsToDate(startDate, purchase.duration),
+    status: "active",
   };
 }

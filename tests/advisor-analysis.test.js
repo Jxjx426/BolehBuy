@@ -30,10 +30,11 @@ test("local advisor flags missing financial records without treating them as zer
 
   assert.equal(analysis.verdictLabel, "Not enough information");
   assert.match(analysis.verdict, /monthly income and monthly commitments/);
-  assert.match(analysis.watchOut, /cannot confirm/);
-  assert.match(analysis.suggestion, /Add your monthly income and monthly commitments/);
+  assert.match(analysis.keyRisk, /Missing records/);
+  assert.match(analysis.recommendedAction, /Add monthly income and monthly commitments/);
   assert.doesNotMatch(JSON.stringify(analysis), /RM 0/);
-  assert.ok(Object.values(analysis).every((text) => typeof text === "string" && text.length <= 200));
+  assert.deepEqual(Object.keys(analysis), ["verdictLabel", "verdict", "keyRisk", "recommendedAction"]);
+  assert.ok(Object.values(analysis).every((text) => typeof text === "string" && text.length <= 180));
 });
 
 test("local advisor suggests checking provider terms when instalment costs include rates or fees", () => {
@@ -59,5 +60,6 @@ test("local advisor suggests checking provider terms when instalment costs inclu
   });
 
   assert.equal(analysis.verdictLabel, "Looks manageable");
-  assert.match(analysis.suggestion, /flat-rate calculation/);
+  assert.match(analysis.recommendedAction, /provider’s final total/);
+  assert.match(analysis.keyRisk, /Unrecorded day-to-day costs/);
 });

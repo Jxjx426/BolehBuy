@@ -1,18 +1,15 @@
 import { createLocalAnalysis } from "./advisor-analysis.js";
 
 const section = document.querySelector("#ai-advisor");
-const analyseButton = document.querySelector("#analyse-purchase");
 const retryButton = document.querySelector("#retry-analysis");
 const loading = document.querySelector("#advisor-loading");
 const status = document.querySelector("#advisor-status");
 const errorPanel = document.querySelector("#advisor-error");
 const result = document.querySelector("#advisor-result");
-const resultContent = document.querySelector("#advisor-result-content");
 
 let getAnalysisPayload = () => null;
 let requestController = null;
 let requestVersion = 0;
-let purchaseReady = false;
 let advisorConfigured = null;
 let isAnalyzing = false;
 
@@ -21,45 +18,25 @@ const errorMessages = {
   GEMINI_TIMEOUT: "Gemini took too long to respond.",
 };
 const verdictLabels = ["Looks manageable", "Be careful", "Consider waiting", "Not enough information"];
+const responseFields = ["verdict", "keyRisk", "recommendedAction"];
 
 function setMessage(message) {
   status.textContent = message;
 }
 
 function clearResult() {
-  resultContent.replaceChildren();
+  document.querySelector("#advisor-verdict-label").textContent = "";
+  for (const field of responseFields) {
+    document.querySelector(`#advisor-${field === "keyRisk" ? "key-risk" : field === "recommendedAction" ? "recommended-action" : field}`).textContent = "";
+  }
   result.hidden = true;
 }
 
-function addTextCard(heading, text, className = "") {
-  const card = document.createElement("article");
-  card.className = `advisor-result-card ${className}`.trim();
-  const title = document.createElement("h3");
-  title.textContent = heading;
-  const paragraph = document.createElement("p");
-  paragraph.textContent = text;
-  card.append(title, paragraph);
-  return card;
-}
-
 function renderAnalysis(analysis) {
-  resultContent.replaceChildren();
-  const verdict = document.createElement("article");
-  verdict.className = "advisor-result-card advisor-verdict";
-  const label = document.createElement("span");
-  label.className = "advisor-verdict-label";
-  label.textContent = analysis.verdictLabel;
-  const summary = document.createElement("p");
-  summary.textContent = analysis.verdict;
-  verdict.append(label, summary);
-
-  resultContent.append(
-    verdict,
-    addTextCard("Positive", analysis.positive, "advisor-positive"),
-    addTextCard("Watch out", analysis.watchOut, "advisor-watchout"),
-    addTextCard("My suggestion", analysis.suggestion, "advisor-suggestion"),
-    addTextCard("Before you decide", analysis.question, "advisor-question"),
-  );
+  document.querySelector("#advisor-verdict-label").textContent = analysis.verdictLabel;
+  document.querySelector("#advisor-verdict").textContent = analysis.verdict;
+  document.querySelector("#advisor-key-risk").textContent = analysis.keyRisk;
+  document.querySelector("#advisor-recommended-action").textContent = analysis.recommendedAction;
   result.hidden = false;
 }
 
@@ -67,18 +44,13 @@ function validateAnalysis(analysis) {
   return Boolean(
     analysis &&
     typeof analysis === "object" &&
+    !Array.isArray(analysis) &&
+    Object.keys(analysis).length === 4 &&
     verdictLabels.includes(analysis.verdictLabel) &&
-    ["verdict", "positive", "watchOut", "suggestion", "question"]
-      .every((field) => typeof analysis[field] === "string" &&
-        analysis[field].trim().length > 0 &&
-        analysis[field].length <= 200),
+    responseFields.every((field) => typeof analysis[field] === "string" &&
+      analysis[field].trim().length > 0 &&
+      analysis[field].length <= 180),
   );
-}
-
-function setReady(isReady) {
-  purchaseReady = isReady;
-  analyseButton.disabled = !isReady || isAnalyzing;
-  retryButton.disabled = isAnalyzing;
 }
 
 async function requestGeminiAnalysis(payload, signal) {
@@ -98,21 +70,13 @@ async function requestGeminiAnalysis(payload, signal) {
 }
 
 async function analysePurchase() {
-  if (!purchaseReady) {
-    setMessage("Calculate the purchase impact before analysing.");
-    return;
-  }
-
   const payload = getAnalysisPayload();
-  if (!payload) {
-    setMessage("Calculate the purchase impact before analysing.");
-    return;
-  }
+  if (!payload) return;
 
   const thisRequest = ++requestVersion;
   requestController = new AbortController();
   isAnalyzing = true;
-  setReady(purchaseReady);
+  retryButton.disabled = true;
   retryButton.hidden = true;
   errorPanel.hidden = true;
   clearResult();
@@ -120,6 +84,11 @@ async function analysePurchase() {
   setMessage("");
 
   try {
+    if (!payload.finances.recordsComplete) {
+      renderAnalysis(createLocalAnalysis(payload));
+      setMessage("Some financial records are missing; Gemini was not sent an incomplete budget.");
+      return;
+    }
     if (advisorConfigured === false) {
       renderAnalysis(createLocalAnalysis(payload));
       setMessage("Local analysis shown; Gemini is unavailable.");
@@ -143,7 +112,7 @@ async function analysePurchase() {
     if (thisRequest === requestVersion) {
       loading.hidden = true;
       isAnalyzing = false;
-      setReady(purchaseReady);
+      retryButton.disabled = false;
       requestController = null;
     }
   }
@@ -151,9 +120,7 @@ async function analysePurchase() {
 
 export function initializeAIAdvisor(getPayload) {
   getAnalysisPayload = getPayload;
-  setReady(false);
-  analyseButton.addEventListener("click", analysePurchase);
-  retryButton.addEventListener("click", analysePurchase);
+  retryButton.addEventListener("click", () => void analysePurchase());
   void checkAdvisorAvailability();
 }
 
@@ -175,17 +142,17 @@ export function invalidateAIAdvice() {
   isAnalyzing = false;
   loading.hidden = true;
   retryButton.hidden = true;
+  retryButton.disabled = false;
   errorPanel.hidden = true;
   clearResult();
-  setReady(false);
-  if (!section.hidden) setMessage("Your purchase details changed. Recalculate before asking again.");
+  setMessage("Calculate Impact to refresh the second opinion.");
 }
 
-export function markAIAdviceReady() {
+export function prepareAIAdvisor() {
   section.hidden = false;
-  clearResult();
-  errorPanel.hidden = true;
-  retryButton.hidden = true;
-  setMessage("");
-  setReady(true);
+  if (!isAnalyzing && result.hidden) setMessage("Calculate Impact to get a second opinion.");
+}
+
+export function analyzeCurrentPurchase() {
+  void analysePurchase();
 }

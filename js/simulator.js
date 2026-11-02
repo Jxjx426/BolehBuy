@@ -1,7 +1,7 @@
 import { addSimulatorPurchase } from "./dashboard.js";
 import {
+  calculateCommitmentMetrics,
   calculateCostEquivalents,
-  calculatePurchaseComparison,
   calculatePurchaseImpact,
   currency,
 } from "./calculations.js";
@@ -12,7 +12,8 @@ import {
 import {
   initializeAIAdvisor,
   invalidateAIAdvice,
-  markAIAdviceReady,
+  analyzeCurrentPurchase,
+  prepareAIAdvisor,
 } from "./ai-advisor.js";
 
 const form = document.querySelector("#simulator-form");
@@ -60,35 +61,31 @@ function setText(selector, value) {
 function renderImpact(impact) {
   emptyResult.hidden = true;
   result.hidden = false;
-  const isPayFull = impact.paymentMethod === "pay-full";
-  setText("#impact-installment", isPayFull ? "Paid in full" : `${currency(impact.monthlyInstallment)} / month`);
-  setText(
-    "#impact-remaining",
-    impact.hasIncomeRecords && impact.hasCommitmentRecords
-      ? currency(impact.estimatedRemaining)
-      : "Incomplete estimate",
-  );
+  const metrics = calculateCommitmentMetrics(impact);
+  setText("#impact-existing-commitments", metrics.existingMonthlyCommitments === null
+    ? "Not enough data"
+    : currency(metrics.existingMonthlyCommitments));
+  setText("#impact-installment", currency(metrics.monthlyInstalment));
+  setText("#impact-new-total", metrics.totalMonthlyCommitments === null
+    ? "Not enough data"
+    : currency(metrics.totalMonthlyCommitments));
+  setText("#impact-ratio-before", metrics.commitmentRatioBefore === null
+    ? "Not enough data"
+    : `${metrics.commitmentRatioBefore.toFixed(2)}%`);
+  setText("#impact-ratio-after", metrics.commitmentRatioAfter === null
+    ? "Not enough data"
+    : `${metrics.commitmentRatioAfter.toFixed(2)}%`);
 
-  const assessment = document.querySelector("#impact-assessment");
-  assessment.className = `assessment assessment-${impact.assessment.level}`;
-  const assessmentLabels = {
-    comfortable: "Comfortable",
-    careful: "Tight",
-    risky: "Stretching It",
-    insufficient: "Incomplete Data",
-  };
-  setText("#assessment-title", assessmentLabels[impact.assessment.level] || impact.assessment.title);
-
-  renderComparison(calculatePurchaseComparison(impact));
+  renderComparison(impact);
   renderTranslator(impact.totalPurchaseCost);
   purchaseDecision.hidden = false;
   purchaseSubmissionId ??= window.crypto?.randomUUID?.() ||
     `purchase-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  markAIAdviceReady();
+  prepareAIAdvisor();
 }
 
 function createAdvisorPayload(impact) {
-  const purchaseComparison = calculatePurchaseComparison(impact);
+  const metrics = calculateCommitmentMetrics(impact);
   const recordsComplete = impact.hasIncomeRecords && impact.hasCommitmentRecords;
 
   return {
@@ -108,46 +105,45 @@ function createAdvisorPayload(impact) {
       existingMonthlyCommitments: impact.hasCommitmentRecords ? impact.commitments : null,
       currentMonthExpenses: impact.expenses,
       remainingBeforePurchase: recordsComplete ? impact.remaining : null,
-      newMonthlyCommitments: recordsComplete ? impact.newCommitments : null,
       estimatedRemainingAfterPurchase: recordsComplete ? impact.estimatedRemaining : null,
+      newTotalMonthlyCommitments: metrics.totalMonthlyCommitments,
+      commitmentRatioBefore: metrics.commitmentRatioBefore,
+      commitmentRatioAfter: metrics.commitmentRatioAfter,
       recordsComplete,
       missingRecords: [
         ...(!impact.hasIncomeRecords ? ["monthly income"] : []),
         ...(!impact.hasCommitmentRecords ? ["monthly commitments"] : []),
       ],
     },
+    comparison: {
+      buyEstimatedRemaining: recordsComplete ? impact.estimatedRemaining : null,
+      dontBuyEstimatedRemaining: recordsComplete ? impact.remaining : null,
+      buyMonthlyCommitments: metrics.totalMonthlyCommitments,
+      dontBuyMonthlyCommitments: metrics.existingMonthlyCommitments,
+    },
     spendingAssessment: {
       title: impact.assessment.title,
       reason: impact.assessment.reason,
       level: impact.assessment.level,
     },
-    comparison: {
-      buyRemaining: recordsComplete ? purchaseComparison.buyRemaining : null,
-      dontBuyRemaining: recordsComplete ? purchaseComparison.dontBuyRemaining : null,
-      moneyRetained: purchaseComparison.moneyRetained,
-      moneyRetainedUnit: purchaseComparison.moneyRetainedType,
-      potentialSavings3Months: purchaseComparison.potentialSavings3Months,
-      potentialSavings6Months: purchaseComparison.potentialSavings6Months,
-    },
   };
 }
 
-function renderComparison(comparisonData) {
+function renderComparison(impact) {
   comparison.hidden = false;
-  const isPayFull = comparisonData.paymentMethod === "pay-full";
-  const remainingIsComplete = comparisonData.hasCompleteFinancialRecords;
-  setText("#comparison-buy-name", comparisonData.itemName);
-  setText("#comparison-buy-price", currency(comparisonData.totalPurchaseCost));
-  setText("#comparison-buy-price-label", isPayFull ? "Purchase price" : "Total instalment cost");
-  setText("#comparison-buy-remaining", remainingIsComplete ? currency(comparisonData.buyRemaining) : "Incomplete estimate");
-  setText("#comparison-retained-label", isPayFull ? "One-time money kept" : "Monthly payment avoided");
-  setText("#comparison-retained", isPayFull
-    ? currency(comparisonData.moneyRetained)
-    : `${currency(comparisonData.moneyRetained)} / month`);
-  setText(
-    "#comparison-savings",
-    `${currency(comparisonData.potentialSavings3Months)} / ${currency(comparisonData.potentialSavings6Months)}`,
-  );
+  const hasFinancialData = impact.hasIncomeRecords && impact.hasCommitmentRecords;
+  const hasCommitmentData = impact.hasCommitmentRecords;
+  setText("#comparison-dont-buy-remaining", hasFinancialData ? currency(impact.remaining) : "Not enough data");
+  setText("#comparison-buy-remaining", hasFinancialData ? currency(impact.estimatedRemaining) : "Not enough data");
+  setText("#comparison-dont-buy-commitments", hasCommitmentData ? currency(impact.commitments) : "Not enough data");
+  setText("#comparison-buy-commitments", hasCommitmentData ? currency(impact.newCommitments) : "Not enough data");
+  let summary = "Some financial records are missing, so estimated remaining money or commitments cannot be fully compared.";
+  if (hasFinancialData) {
+    summary = impact.paymentMethod === "pay-full"
+      ? `Paying in full changes estimated remaining money by ${currency(impact.itemPrice)}; monthly commitments stay the same.`
+      : `Buying changes estimated remaining money by ${currency(impact.monthlyInstallment)} and increases monthly commitments by the same amount.`;
+  }
+  setText("#comparison-summary", summary);
 }
 
 function renderTranslator(price) {
@@ -217,6 +213,7 @@ function hidePurchaseResults() {
   translator.hidden = true;
   purchaseDecision.hidden = true;
   purchaseConfirmation.hidden = true;
+  document.querySelector("#ai-advisor").hidden = true;
   emptyResult.hidden = false;
 }
 
@@ -329,6 +326,7 @@ export function initializeSimulator() {
     event.preventDefault();
     clearValidationError();
     resetPurchaseDecision();
+    invalidateAIAdvice();
     const details = readPurchaseDetails();
     if (details.error) {
       currentPurchaseImpact = null;
@@ -340,6 +338,7 @@ export function initializeSimulator() {
     currentPurchaseImpact = impact;
     hasCalculatedPurchase = true;
     renderImpact(impact);
+    void analyzeCurrentPurchase();
   });
 
   openPurchaseConfirmationButton.addEventListener("click", openPurchaseConfirmation);
