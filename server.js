@@ -312,24 +312,123 @@ function publicError(res, status, code, message) {
   res.status(status).json({ error: { code, message } });
 }
 
+function getGeminiErrorMessage(error) {
+  const rawMessage = typeof error?.message === "string" ? error.message : "";
+  try {
+    const response = JSON.parse(rawMessage);
+    const providerMessage = response?.error?.message;
+    if (typeof providerMessage === "string") return providerMessage;
+  } catch {
+    return rawMessage;
+  }
+  return rawMessage;
+}
+
+function redactDiagnosticMessage(message, requestBody, apiKey) {
+  let safeMessage = message;
+  const privateValues = [apiKey];
+  const collectStrings = (value) => {
+    if (typeof value === "string") privateValues.push(value);
+    else if (Array.isArray(value)) value.forEach(collectStrings);
+    else if (value && typeof value === "object") Object.values(value).forEach(collectStrings);
+  };
+  collectStrings(requestBody);
+  for (const value of privateValues) {
+    if (typeof value === "string" && value.length >= 4) {
+      safeMessage = safeMessage.replaceAll(value, "[REDACTED]");
+    }
+  }
+  return safeMessage
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[REDACTED]")
+    .slice(0, 500);
+}
+
 function mapGeminiError(error) {
-  const status = Number(error?.status ?? error?.response?.status);
+  const rawStatus = error?.status ?? error?.response?.status;
+  const status = Number.isInteger(Number(rawStatus)) ? Number(rawStatus) : null;
   if (status === 429) {
-    return { status: 429, code: "RATE_LIMITED", message: "The advisor is busy right now. Please wait a moment and try again." };
+    return {
+      status: 429,
+      code: "RATE_LIMITED",
+      category: "rate_limit",
+      message: "Gemini rate limit reached. Please wait a moment and try again.",
+    };
   }
   if (status === 401 || status === 403) {
-    return { status: 503, code: "GEMINI_CONFIGURATION", message: "Gemini could not be reached with the current configuration. Check your API key and model in the server environment." };
+    return {
+      status: 503,
+      code: "GEMINI_CONFIGURATION",
+      category: "authentication_or_permission",
+      message: "Gemini rejected the server credentials or permissions. Check the server API key configuration.",
+    };
+  }
+  if (status === 400) {
+    return {
+      status: 502,
+      code: "GEMINI_INVALID_REQUEST",
+      category: "invalid_request",
+      message: "Gemini rejected the request. Check the configured model and request format.",
+    };
+  }
+  if (status === 404) {
+    return {
+      status: 503,
+      code: "GEMINI_MODEL_NOT_FOUND",
+      category: "model_not_found",
+      message: "Gemini could not find the configured model. Check GEMINI_MODEL in the server environment.",
+    };
+  }
+  if (status !== null && status >= 500) {
+    return {
+      status: 502,
+      code: "GEMINI_SERVER_ERROR",
+      category: "gemini_server_error",
+      message: "Gemini returned a server error. Please try again shortly.",
+    };
   }
   if (error?.name === "TimeoutError" || error?.name === "AbortError") {
-    return { status: 504, code: "GEMINI_TIMEOUT", message: "The advisor took too long to respond. Please try again." };
+    return {
+      status: 504,
+      code: "GEMINI_TIMEOUT",
+      category: "timeout",
+      message: "The advisor took too long to respond. Please try again.",
+    };
   }
-  return { status: 502, code: "GEMINI_UNAVAILABLE", message: "The advisor could not complete the analysis. Please try again shortly." };
+  if (status === null) {
+    return {
+      status: 502,
+      code: "GEMINI_NETWORK_ERROR",
+      category: "network_or_transport",
+      message: "The server could not confirm a response from Gemini. Check network connectivity and try again.",
+    };
+  }
+  return {
+    status: 502,
+    code: "GEMINI_API_ERROR",
+    category: "gemini_api_error",
+    message: "Gemini returned an unexpected API error. Please try again shortly.",
+  };
+}
+
+function logGeminiFailure(logger, operation, error, mapped, requestBody, apiKey, model) {
+  const status = mapped.httpStatus ?? error?.status ?? error?.response?.status ?? null;
+  const diagnostic = {
+    operation,
+    category: mapped.category,
+    httpStatus: status,
+    geminiMessage: redactDiagnosticMessage(getGeminiErrorMessage(error), requestBody, apiKey) || "No provider message available.",
+    requestReachedGemini: status === null ? null : true,
+    networkCode: status === null ? error?.cause?.code ?? null : null,
+    model,
+  };
+  logger.error(JSON.stringify({ event: "gemini_request_failed", ...diagnostic }));
 }
 
 export function createApp({
   apiKey = process.env.GEMINI_API_KEY,
   model = process.env.GEMINI_MODEL || DEFAULT_MODEL,
   aiClient,
+  logger = console,
 } = {}) {
   const configuredApiKey = typeof apiKey === "string" && apiKey.trim().length > 0;
   const geminiClient = aiClient ?? (configuredApiKey ? new GoogleGenAI({ apiKey: apiKey.trim() }) : null);
@@ -343,7 +442,7 @@ export function createApp({
 
   app.get("/api/health", (_req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    res.json({ configured: configuredApiKey, advisor: "purchase" });
+    res.json({ configured: configuredApiKey, advisor: "purchase", model });
   });
 
   app.post(
@@ -399,7 +498,7 @@ export function createApp({
           return;
         }
         const mapped = mapGeminiError(error);
-        console.error(`Gemini checkout extraction failed (${mapped.code}).`);
+        logGeminiFailure(logger, "checkout_extraction", error, mapped, req.body, apiKey, model);
         publicError(res, mapped.status, mapped.code, mapped.message);
       }
     },
@@ -446,7 +545,7 @@ export function createApp({
           return;
         }
         const mapped = mapGeminiError(error);
-        console.error(`Gemini purchase analysis failed (${mapped.code}).`);
+        logGeminiFailure(logger, "purchase_analysis", error, mapped, req.body, apiKey, model);
         publicError(res, mapped.status, mapped.code, mapped.message);
       }
     },
@@ -481,6 +580,9 @@ export function createApp({
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const port = Number(process.env.PORT) || 3000;
   createApp().listen(port, () => {
-    console.log(`BolehBuy? is running at http://localhost:${port}`);
+    const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+    const configured = typeof process.env.GEMINI_API_KEY === "string" &&
+      process.env.GEMINI_API_KEY.trim().length > 0;
+    console.log(`BolehBuy? is running at http://localhost:${port} (Gemini configured: ${configured}; model: ${model})`);
   });
 }

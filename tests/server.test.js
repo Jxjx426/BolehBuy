@@ -92,6 +92,16 @@ test("missing API key gives a clear setup response without contacting Gemini", a
   assert.equal(called, false);
 });
 
+test("health reports safe model configuration without exposing credentials", async () => {
+  const origin = await startServer({ apiKey: "test-key", model: "test-flash" });
+  const response = await fetch(`${origin}/api/health`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, { configured: true, advisor: "purchase", model: "test-flash" });
+  assert.doesNotMatch(JSON.stringify(body), /test-key/);
+});
+
 test("checkout image extraction uses structured multimodal Gemini input", async () => {
   let request;
   const origin = await startServer({
@@ -255,21 +265,51 @@ test("oversized checkout images are rejected before Gemini", async () => {
   assert.equal(called, false);
 });
 
-test("checkout extraction maps Gemini failures to a safe response", async () => {
-  const origin = await startServer({
-    apiKey: "test-key",
-    aiClient: { models: { generateContent: async () => { throw new Error("private provider details"); } } },
-  });
-  const response = await fetch(`${origin}/api/extract-checkout`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: "Fictional checkout details", image: null }),
-  });
-  const body = await response.json();
+test("Gemini checkout failures are classified and logged without request data or credentials", async () => {
+  const failureCases = [
+    { status: 400, code: "GEMINI_INVALID_REQUEST", category: "invalid_request" },
+    { status: 401, code: "GEMINI_CONFIGURATION", category: "authentication_or_permission" },
+    { status: 403, code: "GEMINI_CONFIGURATION", category: "authentication_or_permission" },
+    { status: 404, code: "GEMINI_MODEL_NOT_FOUND", category: "model_not_found" },
+    { status: 429, code: "RATE_LIMITED", category: "rate_limit" },
+    { status: 503, code: "GEMINI_SERVER_ERROR", category: "gemini_server_error" },
+    { status: null, code: "GEMINI_NETWORK_ERROR", category: "network_or_transport" },
+  ];
+  for (const failure of failureCases) {
+    const logs = [];
+    const providerMessage = JSON.stringify({
+      error: {
+        code: failure.status,
+        message: "Fictional checkout details must not appear in logs.",
+      },
+    });
+    const error = failure.status === null
+      ? Object.assign(new Error("fetch failed"), { cause: { code: "ENOTFOUND" } })
+      : Object.assign(new Error(providerMessage), { status: failure.status });
+    const origin = await startServer({
+      apiKey: "test-secret-key",
+      logger: { error: (entry) => logs.push(JSON.parse(entry)) },
+      aiClient: { models: { generateContent: async () => { throw error; } } },
+    });
+    const response = await fetch(`${origin}/api/extract-checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Fictional checkout details must not appear in logs.", image: null }),
+    });
+    const body = await response.json();
+    const [log] = logs;
 
-  assert.equal(response.status, 502);
-  assert.equal(body.error.code, "GEMINI_UNAVAILABLE");
-  assert.doesNotMatch(JSON.stringify(body), /private provider details/);
+    assert.equal(body.error.code, failure.code);
+    assert.equal(log.event, "gemini_request_failed");
+    assert.equal(log.operation, "checkout_extraction");
+    assert.equal(log.category, failure.category);
+    assert.equal(log.httpStatus, failure.status);
+    assert.equal(log.requestReachedGemini, failure.status === null ? null : true);
+    assert.doesNotMatch(JSON.stringify(log), /test-secret-key|Fictional checkout details/);
+
+    await new Promise((resolve) => server.close(resolve));
+    server = null;
+  }
 });
 
 test("invalid and oversized requests are rejected before reaching Gemini", async () => {

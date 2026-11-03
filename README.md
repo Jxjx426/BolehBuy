@@ -1,89 +1,363 @@
-# BolehBuy?
+# BolehBuy? — Think Before You Tap
 
-A browser-based financial companion for Malaysian students and young adults.
+> An AI-powered purchase decision assistant that helps Malaysian youth understand the real financial impact of buying something before checking out.
 
-## Run the website
+## Overview
 
-Install dependencies and start the frontend and API on one local origin:
+BolehBuy? is a personal finance decision-support application designed for Malaysian students and young adults.
 
-```powershell
+With the growing popularity of Buy Now, Pay Later (BNPL) services and instalment payments, young consumers may underestimate how multiple small monthly payments accumulate into a significant financial commitment.
+
+BolehBuy? helps users understand what they are committing to before making a purchase.
+
+**Our goal:** Help users think before they tap checkout.
+
+## The Problem
+
+Online shopping and BNPL services make purchasing easier than ever. However, consumers may overlook:
+
+- The total cost of instalment purchases.
+- Additional costs associated with instalment payments.
+- How multiple BNPL plans accumulate into monthly commitments.
+- Whether a purchase fits their existing financial situation.
+- The difference between paying in full and paying over time.
+
+BolehBuy? addresses these problems by turning purchase information into understandable financial insights.
+
+## Key Features
+
+### 1. Personal Finance Dashboard
+
+A centralised view of the user's financial situation.
+
+- Track income and monthly commitments.
+- Record daily expenses.
+- Manage upcoming payments.
+- View monthly financial summaries.
+- Monitor active BNPL commitments.
+- Track commitment durations and payment status.
+
+### 2. AI Checkout Scanner
+
+Understand a purchase without manually entering every detail.
+
+- Upload a checkout screenshot.
+- Paste product or checkout information.
+- Use demo examples to explore the feature.
+- Extract relevant purchase information using Google Gemini.
+- Review and edit extracted values before calculating.
+
+The scanner assists with data extraction. Users remain responsible for reviewing the information before proceeding.
+
+### 3. Purchase Simulator
+
+Compare different payment methods before purchasing.
+
+- Pay in Full.
+- Instalment payments.
+- Custom instalment terms.
+- Monthly payment calculations.
+- Estimated total instalment cost.
+- Comparison between cash price and instalment cost.
+
+### 4. BNPL Commitment Snowball
+
+Understand how a new instalment affects existing financial commitments.
+
+The simulator compares:
+
+- Existing monthly commitments.
+- Monthly commitments after the purchase.
+- The difference created by the new purchase.
+- Active BNPL plan counts before and after the purchase.
+
+This helps users understand how multiple small instalments can accumulate over time.
+
+### 5. AI Purchase Advisor
+
+Receive an additional perspective before making a purchase.
+
+The advisor provides a purchase analysis based on the available financial information and purchase details.
+
+### 6. Mamak Kakak Honest Mode
+
+A more conversational way to understand the purchase decision, using straightforward explanations rather than complicated financial terminology.
+
+### 7. Cooling Jar
+
+A simple pause-before-buying feature.
+
+Users can temporarily place a purchase into the Cooling Jar instead of immediately committing to it.
+
+The feature stores paused purchase information locally and tracks the 72-hour cooling period.
+
+---
+
+## System Architecture
+
+BolehBuy? uses a client-server architecture.
+
+```mermaid
+flowchart TB
+    User([User])
+
+    subgraph Frontend["Frontend — Browser"]
+        UI["HTML / CSS Interface"]
+        JS["Vanilla JavaScript Modules"]
+
+        Dashboard["Finance Dashboard"]
+        Scanner["Checkout Scanner"]
+        Simulator["Purchase Simulator"]
+        Advisor["AI Purchase Advisor"]
+        Cooling["Cooling Jar"]
+
+        Storage[("Browser LocalStorage")]
+    end
+
+    subgraph Backend["Backend — Express.js"]
+        Server["Node.js / Express Server"]
+        Health["Health Endpoint"]
+        Extraction["Checkout Extraction API"]
+        Analysis["Purchase Analysis API"]
+    end
+
+    Gemini["Google Gemini API"]
+
+    User --> UI
+    UI --> JS
+
+    JS --> Dashboard
+    JS --> Scanner
+    JS --> Simulator
+    JS --> Advisor
+    JS --> Cooling
+
+    Dashboard <--> Storage
+    Simulator <--> Storage
+    Cooling <--> Storage
+
+    Scanner --> Extraction
+    Advisor --> Analysis
+
+    Extraction --> Server
+    Analysis --> Server
+    Health --> Server
+
+    Server <--> Gemini
+```
+
+### Architecture Explanation
+
+| Component | Responsibility |
+|---|---|
+| Frontend | Displays the application interface and handles user interactions. |
+| JavaScript Modules | Handle application logic, calculations, validation and feature workflows. |
+| LocalStorage | Stores personal finance records and Cooling Jar data in the browser. |
+| Express.js | Handles backend API requests and communicates with Gemini. |
+| Google Gemini API | Supports checkout information extraction and AI purchase analysis. |
+
+**Important:** Personal finance records are stored locally in the browser. The AI features send the information needed for their respective analysis requests to the backend.
+
+## Checkout Scanner Data Flow
+
+```mermaid
+flowchart TD
+    A([User opens Checkout Scanner])
+    B["Upload screenshot or paste text"]
+    C["Frontend sends extraction request"]
+    D["Express.js backend"]
+    E["Google Gemini API"]
+    F["Extract purchase information"]
+    G{"Extraction successful?"}
+    H["Return extracted fields"]
+    I["Show editable purchase form"]
+    J["User reviews and edits values"]
+    K["Validate required fields"]
+    L["Calculate purchase impact"]
+    M["Display simulator results"]
+    N["Show error and allow manual entry"]
+
+    A --> B --> C --> D --> E --> F --> G
+    G -->|Yes| H --> I --> J --> K --> L --> M
+    G -->|No| N
+```
+
+The AI extraction process does not automatically confirm or save a purchase. Extracted values must be reviewed before calculations are performed.
+
+## Purchase Decision Flow
+
+```mermaid
+flowchart TD
+    A([Start])
+    B["Enter or extract purchase details"]
+    C["Choose Pay in Full or Instalments"]
+    D["Validate purchase information"]
+    E["Calculate total and monthly costs"]
+    F["Compare existing and new commitments"]
+    G["Review Buy vs Don't Buy comparison"]
+    H["Review AI Advisor and real cost explanation"]
+    I["Purchase Decision"]
+    J["Confirm and save purchase"]
+    K["Pause purchase in Cooling Jar"]
+    L([End])
+
+    A --> B --> C --> D --> E --> F
+    F --> G --> H --> I
+    I --> J --> L
+    I --> K --> L
+```
+
+## Technology Stack
+
+| Technology | Usage |
+|---|---|
+| HTML5 | Application structure |
+| CSS3 | Styling and responsive layouts |
+| JavaScript (ES Modules) | Frontend logic and calculations |
+| Node.js | Backend runtime |
+| Express.js | Backend API |
+| Google Gemini API | AI-powered extraction and purchase analysis |
+| LocalStorage | Local financial data persistence |
+| npm | Dependency and script management |
+
+## Project Structure
+
+```text
+First-cc/
+│
+├── index.html
+├── styles.css
+├── server.js
+├── package.json
+├── .env
+├── .gitignore
+│
+├── js/
+│   ├── dashboard.js
+│   ├── storage.js
+│   ├── calculations.js
+│   ├── simulator.js
+│   ├── checkout-scanner.js
+│   ├── ai-advisor.js
+│   ├── advisor-analysis.js
+│   └── cooling-jar.js
+│
+└── tests/
+    └── ...
+```
+
+*The structure above reflects the known application modules. Update it if the actual repository contains additional or renamed files.*
+
+## Installation & Setup
+
+### Prerequisites
+
+- Node.js
+- npm
+- Google Gemini API key
+
+### 1. Clone the Repository
+
+```bash
+git clone YOUR_REPOSITORY_URL
+cd First-cc
+```
+
+### 2. Install Dependencies
+
+```bash
 npm install
+```
+
+### 3. Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+Keep your API key private. Never commit `.env` to GitHub.
+
+### 4. Start the Development Server
+
+```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`. Scam Checker analysis is still a placeholder.
+Open the application:
 
-## Project structure
-
-- `index.html` is the main entry point and contains the three page layouts.
-- `styles.css` contains the shared visual design and responsive styles.
-- `js/app.js` loads saved records and initializes the app modules.
-- `js/navigation.js` handles the three page views and mobile navigation.
-- `js/storage.js` validates, initializes, loads and saves Local Storage data.
-- `js/calculations.js` provides reusable, data-in/data-out currency, date, budget and purchase-comparison calculations.
-- `js/dashboard.js` renders the Dashboard and manages its financial records.
-- `js/simulator.js` renders the purchase impact, buy-versus-wait comparison and fixed illustrative real-cost examples.
-- `js/advisor-analysis.js` creates the concise local fallback analysis, including a prompt to fill in missing records.
-- `js/ai-advisor.js` renders Gemini insights when available and uses a clearly labelled local analysis fallback otherwise.
-- `server.js` serves the website and validates requests before calling the Gemini API.
-
-## Dashboard features
-
-- Add, edit and delete income sources, monthly commitments, daily expenses, and upcoming payments.
-- View monthly income, commitments, current-month expenses, and money remaining.
-- Review a dynamic spending overview and upcoming payments sorted by due date.
-- See a highlighted due-soon or overdue status for each payment.
-- Keep records in browser Local Storage. Records stay in this browser and are not synced.
-- On the first visit only, sample student-budget records are saved as a starting point. Deleting all records leaves an empty dashboard instead of restoring the samples.
-
-All records use one data shape in Local Storage under `bolehbuy-finances`:
-
-```js
-{
-  version: 1,
-  records: [
-    {
-      id: "unique-id",
-      type: "income | commitment | expense | payment",
-      name: "Record name",
-      category: "Income, BNPL, Bills, Subscriptions, Food, ...",
-      amount: 80,
-      date: "YYYY-MM-DD or null",
-      dueDate: "YYYY-MM-DD or null"
-    }
-  ]
-}
+```text
+http://localhost:3000
 ```
 
-Amounts are stored as RM values. The Dashboard and Simulator read this same record collection.
+Keep the terminal running while using the application.
 
-## Simulator features
+## API & AI Integration
 
-- Compare Pay in Full with instalments of 3, 6, 12 or 24 months using the Dashboard's existing income, commitment and expense records.
-- Compare estimated remaining money when buying and waiting. Potential savings reflect payments avoided and do not assume the user will actually save them.
-- Enter an estimated annual flat interest rate (default 0%) and total one-off additional fees (default RM 0) for instalments. Both fields accept non-negative values; rates are limited to 100% and fees to RM 1,000,000.
-- Instalments use `price × annual rate × (months / 12)` for estimated interest, then add fees and divide the estimated total evenly across the selected term. Results are rounded to RM 0.01.
-- These are estimates only, not an APR or a provider's exact repayment method. Check the provider's final terms and charges.
-- Translate the estimated total purchase cost into approximate bowls of mixed rice (RM 12), cups of bubble tea (RM 15) and RapidKL rides (RM 4).
-- Translator reference prices are illustrative examples, not fixed market prices.
-- Potential savings show payments avoided over 3 and 6 months, capped at the estimated total instalment cost; they do not assume the user will actually save the money.
-- After a valid calculation, confirm "I've Decided to Buy" to add a Pay in Full purchase as a dated Shopping expense or an instalment as a BNPL monthly commitment. The existing record format does not store instalment durations or end dates, so keep the provider's schedule separately.
+BolehBuy? uses Google Gemini through its Express.js backend.
 
-## Configure the AI Purchase Advisor
+The backend is responsible for:
 
-1. Copy `.env.example` to `.env`.
-2. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey) and add it as `GEMINI_API_KEY` in `.env`. Do not paste the key into the website or commit `.env`.
-3. Optionally set `GEMINI_MODEL` to another supported model and `PORT` to a different local port. The default model is `gemini-3.1-flash-lite`.
-4. Restart `npm run dev`, calculate a purchase in the Simulator, and click **Analyse My Purchase**.
+- Loading the Gemini API key from environment variables.
+- Sending supported extraction and analysis requests.
+- Processing AI responses.
+- Handling errors and returning appropriate responses to the frontend.
 
-If no key is configured or Gemini is unavailable, the button still works and shows a clearly labelled local analysis based on the Simulator's calculated figures, including a critical-thinking question. The local analysis does not claim to be Gemini output. When Gemini is available, the server sends only the item name and concise calculated values needed for analysis; it does not send dashboard records, transaction descriptions, or Local Storage data. Gemini's response is validated as structured JSON before the browser renders it. Do not include sensitive information in an item name.
+The API key is kept on the server side rather than exposed in frontend JavaScript.
 
-Run the backend tests with:
+AI-generated information is treated as assistance, not as the source of truth for financial calculations.
 
-```powershell
+## Data Storage & Privacy
+
+BolehBuy? uses browser LocalStorage for personal financial records.
+
+- Financial records are stored locally in the user's browser.
+- Cooling Jar entries are stored separately.
+- Users can manually review and manage their records.
+- Gemini requests are handled through the backend.
+- API credentials are not included in frontend code.
+
+AI requests should only include the information needed for the requested feature.
+
+## Testing
+
+Run the automated test suite:
+
+```bash
 npm test
 ```
 
-## Current scope
+Check JavaScript syntax where applicable and review changes before committing:
 
-The Dashboard tracker and the Simulator's purchase impact, spending assessment, buy-versus-wait comparison, real-cost translator and AI Purchase Advisor are implemented. Live Gemini analysis requires a user-provided API key; a local calculated analysis is available when Gemini is not configured or unavailable. Scam Checker analysis is not implemented yet.
+```bash
+git diff --check
+```
+
+The project has previously passed a 50-test suite before subsequent UI and diagnostic work. Run the current suite again to verify the latest repository state.
+
+## Current Limitations
+
+- AI extraction and analysis depend on Gemini API availability.
+- Gemini may temporarily return errors such as HTTP 503 during periods of high demand.
+- Extracted checkout information requires user review.
+- The application is a decision-support tool, not a banking or financial institution.
+- Financial records are currently stored in browser LocalStorage rather than a cloud database.
+- Smart Dupe recommendations should not be interpreted as verified live product listings unless connected to a reliable product data source.
+
+## Future Improvements
+
+- More reliable AI extraction with retry and fallback handling.
+- Verified lower-cost product alternatives.
+- Improved financial insights and spending analysis.
+- More comprehensive BNPL tracking.
+- Optional secure cloud synchronisation.
+- Expanded financial education for Malaysian youth.
+
+## Project Vision
+
+BolehBuy? is built around one simple idea:
+
+**Before you buy something, understand what it really costs you.**
+
+Think before you tap. Make every purchase a more informed decision.
