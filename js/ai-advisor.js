@@ -17,7 +17,7 @@ const errorMessages = {
   RATE_LIMITED: "Gemini is busy right now.",
   GEMINI_TIMEOUT: "Gemini took too long to respond.",
 };
-const verdictLabels = ["Looks manageable", "Be careful", "Consider waiting", "Not enough information"];
+const verdictLabels = ["Review the trade-offs", "Be careful", "Consider waiting", "Not enough information"];
 const responseFields = ["verdict", "keyRisk", "recommendedAction"];
 
 function setMessage(message) {

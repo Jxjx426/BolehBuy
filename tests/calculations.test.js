@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   calculateCommitmentMetrics,
+  calculateApproximateDailyEquivalent,
   calculatePurchaseComparison,
   calculatePurchaseImpact,
   getActiveBnplSummary,
@@ -14,6 +15,12 @@ const records = [
   { type: "commitment", amount: 100 },
   { type: "expense", amount: 200, date: "2026-11-04" },
 ];
+
+test("approximate daily instalment equivalent divides monthly payment by 30", () => {
+  assert.equal(calculateApproximateDailyEquivalent(48), 1.6);
+  assert.equal(calculateApproximateDailyEquivalent(0), null);
+  assert.equal(calculateApproximateDailyEquivalent(null), null);
+});
 
 function calculate(duration, annualFlatInterestRate = 0, additionalFees = 0) {
   return calculatePurchaseImpact(records, {

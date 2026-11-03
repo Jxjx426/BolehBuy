@@ -5,11 +5,17 @@ import {
 } from "./checkout-scanner.js";
 import {
   calculateCommitmentMetrics,
+  calculateApproximateDailyEquivalent,
   calculateCostEquivalents,
   calculatePurchaseImpact,
   currency,
   isValidDurationMonths,
 } from "./calculations.js";
+import {
+  isCoolingPeriodComplete,
+  loadCoolingJarItems,
+  pausePurchase,
+} from "./cooling-jar.js";
 import {
   DEFAULT_TRANSLATOR_PRICES,
   getRecords,
@@ -44,6 +50,11 @@ const purchaseSuccess = document.querySelector("#purchase-success");
 const purchaseSaveError = document.querySelector("#purchase-save-error");
 const confirmAddPurchaseButton = document.querySelector("#confirm-add-purchase");
 const cancelAddPurchaseButton = document.querySelector("#cancel-add-purchase");
+const coolingJarButton = document.querySelector("#cooling-jar-button");
+const coolingJarFeedback = document.querySelector("#cooling-jar-feedback");
+const coolingJarList = document.querySelector("#cooling-jar-list");
+const advisorViewButtons = [...document.querySelectorAll("[data-advisor-view]")];
+let coolingJarExpiryTimer = null;
 let currentPurchaseImpact = null;
 let hasCalculatedPurchase = false;
 let pendingPurchase = null;
@@ -209,12 +220,127 @@ function renderImpact(impact) {
 
   renderCommitmentSnowball(impact);
   renderExtraInstallmentCost(impact);
+  renderAdvisorPersonality(impact);
   renderComparison(impact);
   renderTranslator(impact.totalPurchaseCost);
   purchaseDecision.hidden = false;
   purchaseSubmissionId ??= window.crypto?.randomUUID?.() ||
     `purchase-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   prepareAIAdvisor();
+}
+
+function renderAdvisorPersonality(impact) {
+  const isInstallment = impact.paymentMethod === "installment";
+  const dailyEquivalent = calculateApproximateDailyEquivalent(impact.monthlyInstallment);
+  setText("#marketing-framing", isInstallment && dailyEquivalent !== null
+    ? `Checkout framing: “Only ${currency(dailyEquivalent)}/day?”`
+    : `Pay in Full shows the full ${currency(impact.itemPrice)} cost upfront.`);
+  setText("#marketing-monthly", isInstallment
+    ? `Actual monthly instalment: ${currency(impact.monthlyInstallment)} /month. The daily amount is an approximate equivalent, not an actual daily payment.`
+    : "Actual monthly instalment: RM 0 (Pay in Full). No daily equivalent applies.");
+
+  const snowball = impact.commitmentSnowball;
+  const summary = !isInstallment
+    ? `Dik, paying in full adds no monthly instalment. It is a one-time ${currency(impact.itemPrice)} cost, so check how it fits with the rest of the month.`
+    : snowball.existingMonthlyCommitments === null
+      ? `Dik, this adds ${currency(impact.monthlyInstallment)} per month. Your existing commitment records are incomplete, so I can't show the full monthly stack yet.`
+      : `Dik, this adds ${currency(impact.monthlyInstallment)} per month. Recorded commitments go from ${currency(snowball.existingMonthlyCommitments)} to ${currency(snowball.totalMonthlyCommitments)} /month. That's the monthly lock-in to think about.`;
+  setText("#mamak-summary", summary);
+
+  const extraCost = document.querySelector("#mamak-extra-cost");
+  if (isInstallment && impact.extraInstallmentCost > 0) {
+    const source = impact.quotedTotalInstallmentPayment !== null
+      ? "Based on the total you entered"
+      : "Estimated from monthly instalment × duration";
+    extraCost.textContent = `${source}, this option costs ${currency(impact.extraInstallmentCost)} more than the cash price. That's not necessarily a processing fee, and charges not shown may change the total.`;
+    extraCost.hidden = false;
+  } else {
+    extraCost.textContent = "";
+    extraCost.hidden = true;
+  }
+  setText("#smart-dupe-direction", "If it isn't essential, compare a basic wired or entry-level version you can pay for in cash, or wait for a payday sale—no new instalment needed.");
+}
+
+function setAdvisorView(view) {
+  const showMarketing = view === "marketing";
+  document.querySelector("#marketing-view").hidden = !showMarketing;
+  document.querySelector("#mamak-view").hidden = showMarketing;
+  for (const button of advisorViewButtons) {
+    const selected = button.dataset.advisorView === view;
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-selected", String(selected));
+  }
+}
+
+function setCoolingJarFeedback(message, isError = false) {
+  coolingJarFeedback.textContent = message;
+  coolingJarFeedback.classList.toggle("is-error", isError);
+  coolingJarFeedback.hidden = !message;
+}
+
+function renderCoolingJarItems() {
+  if (coolingJarExpiryTimer !== null) window.clearTimeout(coolingJarExpiryTimer);
+  coolingJarExpiryTimer = null;
+  coolingJarList.replaceChildren();
+
+  const { items, error } = loadCoolingJarItems();
+  if (error) {
+    setCoolingJarFeedback(error, true);
+    return;
+  }
+  if (items.length) {
+    const heading = document.createElement("strong");
+    heading.className = "cooling-jar-list-title";
+    heading.textContent = "Paused in Cooling Jar";
+    coolingJarList.append(heading);
+  }
+  for (const item of items) {
+    const complete = isCoolingPeriodComplete(item);
+    const entry = document.createElement("div");
+    entry.className = `cooling-jar-entry${complete ? " is-complete" : ""}`;
+    const name = document.createElement("strong");
+    name.textContent = item.itemName;
+    const price = document.createElement("span");
+    price.textContent = currency(item.price);
+    const status = document.createElement("span");
+    status.className = "cooling-jar-entry-status";
+    status.textContent = complete
+      ? "Cooling Period Complete — Ready to Decide"
+      : "72h cooling period active";
+    entry.append(name, price, status);
+    coolingJarList.append(entry);
+  }
+
+  const nextExpiry = items
+    .map((item) => Date.parse(item.timestamp) + 72 * 60 * 60 * 1000)
+    .filter((timestamp) => timestamp > Date.now())
+    .sort((left, right) => left - right)[0];
+  if (nextExpiry !== undefined) {
+    coolingJarExpiryTimer = window.setTimeout(
+      renderCoolingJarItems,
+      Math.min(nextExpiry - Date.now() + 50, 2_147_000_000),
+    );
+  }
+}
+
+function putCurrentPurchaseInCoolingJar() {
+  if (!currentPurchaseImpact || !hasCalculatedPurchase) {
+    setCoolingJarFeedback("Calculate a valid purchase before using the Cooling Jar.", true);
+    return;
+  }
+  const saved = pausePurchase(currentPurchaseImpact);
+  if (saved.duplicate) {
+    setCoolingJarFeedback("This purchase calculation is already in your Cooling Jar.");
+    renderCoolingJarItems();
+    return;
+  }
+  if (!saved.success) {
+    setCoolingJarFeedback(saved.error || "This item could not be saved to the Cooling Jar.", true);
+    return;
+  }
+
+  setCoolingJarFeedback(`✨ Purchase paused for 72 hours! You just held back ${currency(saved.item.price)} (Potential Money Saved) to give yourself breathing room before deciding.`);
+  renderCoolingJarItems();
 }
 
 function renderCommitmentSnowball(impact) {
@@ -524,6 +650,13 @@ function updateResultsFromForm() {
 export function initializeSimulator() {
   initializeAIAdvisor(() => currentPurchaseImpact ? createAdvisorPayload(currentPurchaseImpact) : null);
   initializeCheckoutScanner(applyCheckoutExtraction);
+  renderCoolingJarItems();
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) renderCoolingJarItems();
+  });
+  advisorViewButtons.forEach((button) => {
+    button.addEventListener("click", () => setAdvisorView(button.dataset.advisorView));
+  });
 
   function onInputChange(event) {
     markExtractionEdited(event.target);
@@ -562,6 +695,7 @@ export function initializeSimulator() {
   });
 
   openPurchaseConfirmationButton.addEventListener("click", openPurchaseConfirmation);
+  coolingJarButton.addEventListener("click", putCurrentPurchaseInCoolingJar);
   cancelAddPurchaseButton.addEventListener("click", () => {
     pendingPurchase = null;
     purchaseConfirmation.hidden = true;

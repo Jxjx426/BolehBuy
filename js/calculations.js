@@ -44,6 +44,11 @@ function roundCurrency(amount) {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 }
 
+export function calculateApproximateDailyEquivalent(monthlyInstallment) {
+  if (!Number.isFinite(monthlyInstallment) || monthlyInstallment <= 0) return null;
+  return roundCurrency(monthlyInstallment / 30);
+}
+
 export function currentMonthExpenses(records, date = new Date()) {
   const month = localDateString(date).slice(0, 7);
   return records.filter((record) => record.type === "expense" && record.date.startsWith(month));
