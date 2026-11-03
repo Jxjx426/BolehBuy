@@ -178,7 +178,9 @@
             </div>
             <div class="sticker sticker-yellow"><span aria-hidden="true">✦</span><br />No judgement,<br />just clarity.</div>
           </div>
-          <section class="panel checkout-scanner-panel" aria-labelledby="checkout-scanner-title">
+          <details class="checkout-scanner-disclosure">
+            <summary>📸 Or scan a checkout screenshot instead</summary>
+            <section class="panel checkout-scanner-panel" aria-labelledby="checkout-scanner-title">
             <div class="scanner-heading">
               <div>
                 <h2 id="checkout-scanner-title">Scan Before You Buy</h2>
@@ -213,7 +215,8 @@
               <p class="scanner-message" id="scanner-message" role="status" aria-live="polite"></p>
             </div>
             <div class="scanner-warning-list" id="scanner-warnings" role="status" aria-live="polite" hidden></div>
-          </section>
+            </section>
+          </details>
           <div class="simulator-layout">
             <div class="simulator-left-column">
               <section class="panel form-panel" aria-labelledby="purchase-form-title">
@@ -261,93 +264,28 @@
                   <button class="primary-button" type="submit">Calculate Impact <span aria-hidden="true">→</span></button>
                 </form>
               </section>
-              <section class="panel result-panel purchase-decision-panel" id="purchase-decision" aria-labelledby="purchase-decision-title" hidden>
-                <div class="result-heading">
-                  <span class="result-icon purchase-decision-icon" aria-hidden="true">♡</span>
-                  <h2 id="purchase-decision-title">Your Purchase Decision</h2>
-                </div>
-                <p class="purchase-decision-copy">You've reviewed the numbers. If you've decided to go ahead, add this purchase to your Dashboard.</p>
-                <button class="primary-button purchase-decision-button" id="open-purchase-confirmation" type="button">
-                  <span id="purchase-decision-button-label">I've Decided to Buy</span><span aria-hidden="true">→</span>
-                </button>
-                <button class="secondary-button cooling-jar-button" id="cooling-jar-button" type="button">
-                  <span aria-hidden="true">🫙</span><span>Put in 72-Hour Cooling Jar</span>
-                </button>
-                <div class="purchase-confirmation" id="purchase-confirmation" hidden>
-                  <h3>Confirm this purchase</h3>
-                  <dl class="purchase-confirmation-details">
-                    <div><dt>Item</dt><dd id="confirm-item-name"></dd></div>
-                    <div><dt>Purchase price</dt><dd id="confirm-item-price"></dd></div>
-                    <div><dt>Payment method</dt><dd id="confirm-payment-method"></dd></div>
-                    <div id="confirm-duration-row" hidden><dt>Instalment duration</dt><dd id="confirm-duration"></dd></div>
-                    <div id="confirm-total-row" hidden><dt>Estimated total instalment cost</dt><dd id="confirm-total"></dd></div>
-                    <div id="confirm-monthly-row" hidden><dt>Estimated monthly instalment</dt><dd id="confirm-monthly"></dd></div>
-                    <div id="confirm-interest-row" hidden><dt>Estimated flat interest</dt><dd id="confirm-interest"></dd></div>
-                    <div id="confirm-fees-row" hidden><dt>Additional fees</dt><dd id="confirm-fees"></dd></div>
-                  </dl>
-                  <p class="purchase-destination" id="purchase-destination"></p>
-                  <p class="purchase-duration-note" id="purchase-duration-note" hidden>The Dashboard will record this active BNPL plan, its selected term and calculated end date.</p>
-                  <p class="purchase-save-error" id="purchase-save-error" role="alert" hidden></p>
-                  <div class="purchase-confirmation-actions">
-                    <button class="primary-button" id="confirm-add-purchase" type="button">Confirm &amp; Add</button>
-                    <button class="secondary-button" id="cancel-add-purchase" type="button">Cancel</button>
-                  </div>
-                </div>
-                <div class="purchase-success" id="purchase-success" role="status" aria-live="polite" hidden>
-                  <strong>Added to Dashboard successfully!</strong>
-                  <a class="secondary-button purchase-dashboard-link" href="#dashboard" data-page="dashboard"><span>View Dashboard</span><span aria-hidden="true">→</span></a>
-                </div>
-              </section>
-              <div class="cooling-jar-feedback" id="cooling-jar-feedback" role="status" aria-live="polite" hidden></div>
-              <div class="cooling-jar-list" id="cooling-jar-list" aria-label="Paused in Cooling Jar"></div>
             </div>
             <div class="simulator-results">
               <section class="panel result-panel commitment-impact-card" aria-live="polite" aria-labelledby="purchase-impact-title">
-                <div class="result-heading"><span class="result-icon" aria-hidden="true">↻</span><h2 id="purchase-impact-title">Your Commitments After This</h2></div>
+                <div class="result-heading"><span class="result-icon" aria-hidden="true">↗</span><h2 id="purchase-impact-title">Your Commitment Snowball</h2></div>
                 <p class="placeholder-copy" id="simulator-empty">Enter a purchase to see how it could affect your monthly money.</p>
                 <div class="impact-result" id="simulator-result" hidden>
-                  <div class="commitment-metric-grid">
-                    <div class="commitment-metric"><span>Existing Monthly Commitments</span><strong id="impact-existing-commitments"></strong></div>
-                    <div class="commitment-metric commitment-metric-new"><span>New Monthly Instalment</span><strong id="impact-installment"></strong></div>
-                    <div class="commitment-metric commitment-metric-total"><span>New Total Monthly Commitments</span><strong id="impact-new-total"></strong></div>
-                    <div class="commitment-metric commitment-metric-ratio">
-                      <span>Monthly Commitment Ratio</span>
-                      <div><strong id="impact-ratio-before"></strong><span>before</span><strong id="impact-ratio-after"></strong><span>after</span></div>
-                    </div>
-                  </div>
-                  <p class="commitment-ratio-note">Compares recorded monthly commitments with recorded income; it is not an affordability score.</p>
-                  <section class="bnpl-snowball" aria-labelledby="bnpl-snowball-title">
-                    <div class="snowball-heading">
-                      <span class="snowball-icon" aria-hidden="true">↗</span>
-                      <div><h3 id="bnpl-snowball-title">The BNPL Snowball</h3><p>Small instalments add up across active plans.</p></div>
-                    </div>
-                    <div class="snowball-calculation" aria-label="Monthly commitment calculation">
-                      <div><span>Existing Active Monthly Commitments</span><strong id="snowball-existing-monthly"></strong></div>
-                      <div><span>New Monthly Instalment</span><strong id="snowball-new-monthly"></strong></div>
-                      <div class="snowball-total"><span>Total Monthly Commitments After Purchase</span><strong id="snowball-total-monthly"></strong></div>
-                    </div>
-                    <div class="snowball-plan-counts">
-                      <div><strong id="snowball-existing-count"></strong><span>existing active BNPL plans</span></div>
-                      <div><strong id="snowball-new-count"></strong><span>new BNPL plans</span></div>
-                      <div><strong id="snowball-total-count"></strong><span>active plans after purchase</span></div>
-                    </div>
+                  <div class="bnpl-snowball">
                     <div class="snowball-before-after">
                       <div><span>Before Purchase</span><strong id="snowball-before"></strong></div>
                       <div><span>After Purchase</span><strong id="snowball-after"></strong></div>
                       <div class="snowball-difference"><span>Difference</span><strong id="snowball-difference"></strong></div>
                     </div>
-                  </section>
+                    <p class="snowball-plan-summary" id="snowball-plan-summary"></p>
+                    <p class="pay-full-impact" id="pay-full-impact" hidden></p>
+                  </div>
                   <section class="extra-installment-cost" id="extra-installment-cost" aria-labelledby="extra-cost-title" hidden>
-                    <div class="extra-cost-heading">
-                      <span aria-hidden="true">!</span>
-                      <h3 id="extra-cost-title">Instalment Cost Comparison</h3>
-                    </div>
                     <div id="extra-cost-details" hidden>
+                      <p class="extra-cost-warning" id="extra-cost-warning" hidden><strong id="extra-cost-title">Extra Instalment Cost Detected</strong></p>
                       <div class="extra-cost-values">
                         <div><span>Cash Price</span><strong id="extra-cost-cash-price"></strong></div>
                         <div><span>Total Instalment Payment</span><strong id="extra-cost-total"></strong></div>
                       </div>
-                      <p class="extra-cost-warning" id="extra-cost-warning" hidden><strong>Extra Instalment Cost Detected</strong></p>
                       <p class="extra-cost-message" id="extra-cost-message"></p>
                       <p class="extra-cost-fee" id="extra-cost-processing-fee" hidden></p>
                       <p class="extra-cost-disclaimer">This comparison may exclude fees or charges that are not visible in the checkout. The difference is not necessarily a processing fee.</p>
@@ -404,6 +342,44 @@
                 </div>
               </section>
               <p class="simulator-shared-footnote">Instalment figures are estimates; actual provider terms and unrecorded spending may vary. Illustrative comparisons are not exact prices. AI-generated insights are not financial advice.</p>
+              <section class="panel result-panel purchase-decision-panel" id="purchase-decision" aria-labelledby="purchase-decision-title" hidden>
+                <div class="result-heading">
+                  <span class="result-icon purchase-decision-icon" aria-hidden="true">♡</span>
+                  <h2 id="purchase-decision-title">Your Purchase Decision</h2>
+                </div>
+                <button class="primary-button purchase-decision-button" id="open-purchase-confirmation" type="button">
+                  <span id="purchase-decision-button-label">I've Decided to Buy</span><span aria-hidden="true">→</span>
+                </button>
+                <button class="secondary-button cooling-jar-button" id="cooling-jar-button" type="button">
+                  <span aria-hidden="true">🫙</span><span>Put in 72-Hour Cooling Jar</span>
+                </button>
+                <div class="purchase-confirmation" id="purchase-confirmation" hidden>
+                  <h3>Confirm this purchase</h3>
+                  <dl class="purchase-confirmation-details">
+                    <div><dt>Item</dt><dd id="confirm-item-name"></dd></div>
+                    <div><dt>Purchase price</dt><dd id="confirm-item-price"></dd></div>
+                    <div><dt>Payment method</dt><dd id="confirm-payment-method"></dd></div>
+                    <div id="confirm-duration-row" hidden><dt>Instalment duration</dt><dd id="confirm-duration"></dd></div>
+                    <div id="confirm-total-row" hidden><dt>Estimated total instalment cost</dt><dd id="confirm-total"></dd></div>
+                    <div id="confirm-monthly-row" hidden><dt>Estimated monthly instalment</dt><dd id="confirm-monthly"></dd></div>
+                    <div id="confirm-interest-row" hidden><dt>Estimated flat interest</dt><dd id="confirm-interest"></dd></div>
+                    <div id="confirm-fees-row" hidden><dt>Additional fees</dt><dd id="confirm-fees"></dd></div>
+                  </dl>
+                  <p class="purchase-destination" id="purchase-destination"></p>
+                  <p class="purchase-duration-note" id="purchase-duration-note" hidden>The Dashboard will record this active BNPL plan, its selected term and calculated end date.</p>
+                  <p class="purchase-save-error" id="purchase-save-error" role="alert" hidden></p>
+                  <div class="purchase-confirmation-actions">
+                    <button class="primary-button" id="confirm-add-purchase" type="button">Confirm &amp; Add</button>
+                    <button class="secondary-button" id="cancel-add-purchase" type="button">Cancel</button>
+                  </div>
+                </div>
+                <div class="purchase-success" id="purchase-success" role="status" aria-live="polite" hidden>
+                  <strong>Added to Dashboard successfully!</strong>
+                  <a class="secondary-button purchase-dashboard-link" href="#dashboard" data-page="dashboard"><span>View Dashboard</span><span aria-hidden="true">→</span></a>
+                </div>
+              </section>
+              <div class="cooling-jar-feedback" id="cooling-jar-feedback" role="status" aria-live="polite" hidden></div>
+              <div class="cooling-jar-list" id="cooling-jar-list" aria-label="Paused in Cooling Jar"></div>
             </div>
           </div>
         </section>

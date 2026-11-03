@@ -203,21 +203,6 @@ function setText(selector, value) {
 function renderImpact(impact) {
   emptyResult.hidden = true;
   result.hidden = false;
-  const metrics = calculateCommitmentMetrics(impact);
-  setText("#impact-existing-commitments", metrics.existingMonthlyCommitments === null
-    ? "Not enough data"
-    : currency(metrics.existingMonthlyCommitments));
-  setText("#impact-installment", currency(metrics.monthlyInstalment));
-  setText("#impact-new-total", metrics.totalMonthlyCommitments === null
-    ? "Not enough data"
-    : currency(metrics.totalMonthlyCommitments));
-  setText("#impact-ratio-before", metrics.commitmentRatioBefore === null
-    ? "Not enough data"
-    : `${metrics.commitmentRatioBefore.toFixed(2)}%`);
-  setText("#impact-ratio-after", metrics.commitmentRatioAfter === null
-    ? "Not enough data"
-    : `${metrics.commitmentRatioAfter.toFixed(2)}%`);
-
   renderCommitmentSnowball(impact);
   renderExtraInstallmentCost(impact);
   renderAdvisorPersonality(impact);
@@ -354,24 +339,34 @@ function renderCommitmentSnowball(impact) {
     ? currency(snowball.totalMonthlyCommitments)
     : "Not enough data";
   const difference = hasCompleteSnowballData
-    ? `+${currency(snowball.monthlyIncrease)}`
+    ? `+${currency(snowball.monthlyIncrease)} /month`
     : "Not enough data";
 
-  setText("#snowball-existing-monthly", hasCompleteSnowballData ? `${before} /month` : before);
-  setText("#snowball-new-monthly", `+${currency(snowball.newMonthlyInstallment)} /month`);
-  setText("#snowball-total-monthly", hasCompleteSnowballData ? `${after} /month` : after);
-  setText("#snowball-existing-count", String(snowball.existingActiveBnplPlans));
-  setText("#snowball-new-count", String(snowball.newBnplPlans));
-  setText("#snowball-total-count", String(snowball.totalActiveBnplPlans));
   setText("#snowball-before", hasCompleteSnowballData ? `${before} /month` : before);
   setText("#snowball-after", hasCompleteSnowballData ? `${after} /month` : after);
   setText("#snowball-difference", difference);
+
+  const isPayFull = impact.paymentMethod === "pay-full";
+  const planSummary = document.querySelector("#snowball-plan-summary");
+  const payFullImpact = document.querySelector("#pay-full-impact");
+  planSummary.hidden = isPayFull;
+  payFullImpact.hidden = !isPayFull;
+  if (isPayFull) {
+    setText("#pay-full-impact", `One-time purchase: ${currency(impact.itemPrice)}; no added monthly commitment.`);
+  } else {
+    setText("#snowball-plan-summary", hasCompleteSnowballData
+      ? `${snowball.existingActiveBnplPlans} active BNPL ${snowball.existingActiveBnplPlans === 1 ? "plan" : "plans"} → ${snowball.totalActiveBnplPlans} after this purchase`
+      : "Not enough data to show active BNPL plan counts.");
+  }
 }
 
 function renderExtraInstallmentCost(impact) {
   const section = document.querySelector("#extra-installment-cost");
   const details = document.querySelector("#extra-cost-details");
-  if (impact.paymentMethod !== "installment") {
+  const hasVerifiedComparison = impact.paymentMethod === "installment" &&
+    (impact.quotedTotalInstallmentPayment !== null ||
+      impact.quotedMonthlyInstallment !== null);
+  if (!hasVerifiedComparison || impact.extraInstallmentCost <= 0) {
     section.hidden = true;
     return;
   }
@@ -381,15 +376,8 @@ function renderExtraInstallmentCost(impact) {
   setText("#extra-cost-cash-price", currency(impact.itemPrice));
   setText("#extra-cost-total", currency(impact.instalmentTotalForComparison));
   const extraCost = impact.extraInstallmentCost;
-  if (extraCost > 0) {
-    document.querySelector("#extra-cost-warning").hidden = false;
-    setText("#extra-cost-message", `You're paying ${currency(extraCost)} more through this instalment option.`);
-  } else {
-    document.querySelector("#extra-cost-warning").hidden = true;
-    setText("#extra-cost-message", extraCost < 0
-      ? `The displayed instalment total is ${currency(Math.abs(extraCost))} below the cash price. Verify whether a deposit or other charges are excluded.`
-      : "No extra instalment cost is shown in these figures.");
-  }
+  document.querySelector("#extra-cost-warning").hidden = false;
+  setText("#extra-cost-message", `You're paying ${currency(extraCost)} more through this instalment option.`);
   const feeNote = document.querySelector("#extra-cost-processing-fee");
   feeNote.hidden = !impact.processingFeeExplicitlyShown;
   if (impact.processingFeeExplicitlyShown) {
