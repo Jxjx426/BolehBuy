@@ -37,7 +37,7 @@ test("local advisor flags missing financial records without treating them as zer
   assert.ok(Object.values(analysis).every((text) => typeof text === "string" && text.length <= 180));
 });
 
-test("local advisor suggests checking provider terms when instalment costs include rates or fees", () => {
+test("local advisor recommends reviewing the commitment stack without declaring it manageable", () => {
   const analysis = createLocalAnalysis({
     purchase: {
       itemName: "Laptop",
@@ -56,10 +56,40 @@ test("local advisor suggests checking provider terms when instalment costs inclu
       currentMonthExpenses: 742,
       estimatedRemainingAfterPurchase: 500,
     },
-    spendingAssessment: { title: "Comfortable", reason: "Assessment text.", level: "comfortable" },
+    spendingAssessment: { title: "Review the trade-offs", reason: "Assessment text.", level: "informational" },
   });
 
-  assert.equal(analysis.verdictLabel, "Looks manageable");
+  assert.equal(analysis.verdictLabel, "Review the trade-offs");
   assert.match(analysis.recommendedAction, /provider’s final total/);
-  assert.match(analysis.keyRisk, /Unrecorded day-to-day costs/);
+  assert.match(analysis.keyRisk, /Unrecorded costs/);
+});
+
+test("local advisor does not infer a zero processing fee from an empty field", () => {
+  const analysis = createLocalAnalysis({
+    purchase: {
+      itemName: "Tablet",
+      itemPrice: 300,
+      paymentMethod: "installment",
+      duration: 6,
+      annualFlatInterestRate: 0,
+      additionalFees: 0,
+      processingFeeExplicitlyShown: false,
+      monthlyInstallment: 50,
+    },
+    finances: {
+      recordsComplete: true,
+      missingRecords: [],
+      monthlyIncome: 2200,
+      existingMonthlyCommitments: 680,
+      currentMonthExpenses: 742,
+      estimatedRemainingAfterPurchase: 728,
+    },
+    spendingAssessment: {
+      title: "Review the trade-offs",
+      reason: "This adds a monthly commitment.",
+      level: "informational",
+    },
+  });
+
+  assert.match(analysis.recommendedAction, /provider’s final total/);
 });

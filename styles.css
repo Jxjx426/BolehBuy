@@ -432,6 +432,39 @@ h2 { color: #3c473e; font-size: 17px; font-weight: 800; letter-spacing: -.3px; l
 .commitment-metric-ratio > div strong { color: #655b75; font-family: "Nunito", sans-serif; font-size: 14px; }
 .commitment-metric-ratio > div span { color: #898393; font-size: 8px; }
 .commitment-ratio-note { color: #91968c; font-size: 8px; line-height: 1.45; margin: 9px 0 0; }
+.bnpl-snowball { background: #f7f8f2; border: 1px solid #e8ede3; border-radius: 12px; margin-top: 15px; padding: 14px; }
+.snowball-heading { align-items: center; display: flex; gap: 9px; }
+.snowball-icon { align-items: center; background: #e6eee2; border-radius: 9px; color: #678368; display: flex; flex: 0 0 29px; font-size: 17px; height: 29px; justify-content: center; }
+.snowball-heading h3, .extra-cost-heading h3 { color: #4c5d4d; font-family: "Nunito", sans-serif; font-size: 12px; margin: 0; }
+.snowball-heading p { color: #92968d; font-size: 8px; margin: 3px 0 0; }
+.snowball-calculation { margin-top: 11px; }
+.snowball-calculation > div, .extra-cost-values > div { align-items: center; border-bottom: 1px solid #e9ece5; display: flex; gap: 10px; justify-content: space-between; padding: 7px 2px; }
+.snowball-calculation > div > span, .extra-cost-values span { color: #737d70; font-size: 9px; line-height: 1.35; }
+.snowball-calculation strong, .extra-cost-values strong { color: #4c5d4d; font-family: "Nunito", sans-serif; font-size: 11px; text-align: right; }
+.snowball-calculation .snowball-total { border-bottom: 0; }
+.snowball-total strong { color: #3e6546; font-size: 13px; }
+.snowball-plan-counts { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 5px; }
+.snowball-plan-counts > div { align-items: center; background: #fff; border-radius: 8px; display: flex; flex-direction: column; gap: 3px; justify-content: center; min-height: 55px; padding: 6px; text-align: center; }
+.snowball-plan-counts strong { color: #587459; font-family: "Nunito", sans-serif; font-size: 16px; }
+.snowball-plan-counts span { color: #858d81; font-size: 8px; line-height: 1.3; }
+.snowball-before-after { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 8px; }
+.snowball-before-after > div { background: #fff; border-radius: 8px; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 8px; }
+.snowball-before-after span { color: #858d81; font-size: 8px; }
+.snowball-before-after strong { color: #4c5d4d; font-family: "Nunito", sans-serif; font-size: 10px; overflow-wrap: anywhere; }
+.snowball-before-after .snowball-difference { background: #fff5df; }
+.snowball-difference strong { color: #8d6a22; }
+.extra-installment-cost { background: #fffaf0; border: 1px solid #f0e5c7; border-radius: 10px; margin-top: 11px; padding: 11px; }
+.extra-installment-cost[hidden], .extra-cost-details[hidden] { display: none; }
+.extra-cost-heading { align-items: center; display: flex; gap: 7px; }
+.extra-cost-heading > span { align-items: center; background: #f5e9c8; border-radius: 7px; color: #987b37; display: flex; font-size: 11px; height: 23px; justify-content: center; width: 23px; }
+.extra-cost-values { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 8px; }
+.extra-cost-values > div { align-items: flex-start; border-bottom: 0; flex-direction: column; gap: 4px; }
+.extra-cost-values strong { text-align: left; }
+.extra-cost-warning { color: #8b6a24; font-size: 10px; margin: 7px 0 0; }
+.extra-cost-warning[hidden], .extra-cost-fee[hidden] { display: none; }
+.extra-cost-message { color: #596c57; font-size: 9px; line-height: 1.45; margin: 5px 0 0; }
+.extra-cost-fee { color: #7a806f; font-size: 8px; margin: 5px 0 0; }
+.extra-cost-disclaimer { color: #96978c; font-size: 8px; line-height: 1.45; margin: 6px 0 0; }
 .comparison-table { margin-top: 14px; }
 .comparison-table-header, .comparison-table-row { align-items: center; display: grid; gap: 7px; grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr) minmax(0, 1.1fr); }
 .comparison-table-header { color: #898e84; font-size: 8px; line-height: 1.35; padding: 0 8px 7px; }
@@ -518,6 +551,11 @@ h2 { color: #3c473e; font-size: 17px; font-weight: 800; letter-spacing: -.3px; l
   .commitment-metric-grid { gap: 6px; }
   .commitment-metric { padding: 9px; }
   .advisor-verdict-line, .advisor-insight-line { grid-template-columns: 82px minmax(0, 1fr); }
+  .bnpl-snowball { padding: 10px; }
+  .snowball-before-after { grid-template-columns: 1fr; }
+  .snowball-before-after > div { align-items: center; flex-direction: row; justify-content: space-between; }
+  .snowball-plan-counts span { font-size: 7px; }
+  .snowball-calculation > div > span { font-size: 8px; }
 }
 
 .data-notice {

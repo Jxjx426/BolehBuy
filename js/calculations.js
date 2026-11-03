@@ -103,7 +103,7 @@ export function getTotals(records, date = new Date(), asOfDate = new Date()) {
 }
 
 export function calculatePurchaseImpact(records, purchase, date = new Date()) {
-  const totals = getTotals(records, date);
+  const totals = getTotals(records, date, date);
   const isInstallment = purchase.paymentMethod === "installment";
   const quotedMonthlyInstallment = purchase.quotedMonthlyInstallment ?? null;
   const quotedTotalInstallmentPayment = purchase.quotedTotalInstallmentPayment ?? null;
@@ -140,11 +140,29 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
       : roundCurrency(totalPurchaseCost / purchase.duration)
     : 0;
   const newCommitments = roundCurrency(totals.commitments + monthlyInstallment);
+  const activeBnplSummary = getActiveBnplSummary(records, date);
+  const hasCommitmentRecords = records.some((record) => record.type === "commitment");
+  const commitmentSnowball = {
+    existingActiveBnplPlans: activeBnplSummary.count,
+    newBnplPlans: isInstallment ? 1 : 0,
+    totalActiveBnplPlans: activeBnplSummary.count + (isInstallment ? 1 : 0),
+    existingMonthlyCommitments: hasCommitmentRecords ? totals.commitments : null,
+    newMonthlyInstallment: monthlyInstallment,
+    totalMonthlyCommitments: hasCommitmentRecords ? newCommitments : null,
+    monthlyIncrease: hasCommitmentRecords ? monthlyInstallment : null,
+  };
+  const instalmentTotalForComparison = isInstallment
+    ? quotedTotalInstallmentPayment !== null
+      ? roundCurrency(quotedTotalInstallmentPayment)
+      : roundCurrency(monthlyInstallment * purchase.duration)
+    : null;
+  const extraInstallmentCost = isInstallment
+    ? roundCurrency(instalmentTotalForComparison - purchase.price)
+    : null;
   const estimatedRemaining = roundCurrency(purchase.paymentMethod === "pay-full"
     ? totals.remaining - purchase.price
     : totals.remaining - monthlyInstallment);
   const hasIncomeRecords = records.some((record) => record.type === "income");
-  const hasCommitmentRecords = records.some((record) => record.type === "commitment");
   let assessment;
 
   if (!hasIncomeRecords || !hasCommitmentRecords) {
@@ -157,26 +175,13 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
       title: "Insufficient Data",
       reason: `Add records for ${missing.join(" and ")} in My Money Dashboard for a more complete assessment.`,
     };
-  } else if (estimatedRemaining < 0) {
-    assessment = {
-      level: "risky",
-      title: "Risky",
-      reason: `This purchase would put your estimated monthly balance ${currency(Math.abs(estimatedRemaining))} below zero.`,
-    };
-  } else if (
-    estimatedRemaining < totals.income * 0.2 ||
-    (totals.income > 0 && newCommitments > totals.income * 0.5)
-  ) {
-    assessment = {
-      level: "careful",
-      title: "Be Careful",
-      reason: "Your estimated remaining money is below 20% of your income, or commitments would use more than half of it.",
-    };
   } else {
     assessment = {
-      level: "comfortable",
-      title: "Comfortable",
-      reason: "Based on the records available, your estimate leaves at least 20% of your monthly income after this purchase.",
+      level: "informational",
+      title: "Review the trade-offs",
+      reason: isInstallment
+        ? `This plan adds ${currency(monthlyInstallment)} per month to recorded commitments and brings active BNPL plans to ${commitmentSnowball.totalActiveBnplPlans}.`
+        : "Paying in full does not add a monthly commitment; compare the one-time cost with your recorded monthly finances.",
     };
   }
 
@@ -191,9 +196,13 @@ export function calculatePurchaseImpact(records, purchase, date = new Date()) {
     totalInterest,
     totalPurchaseCost,
     monthlyInstallment,
+    processingFeeExplicitlyShown: isInstallment && purchase.processingFeeExplicitlyShown === true,
     quotedMonthlyInstallment: isInstallment ? quotedMonthlyInstallment : null,
     quotedTotalInstallmentPayment: isInstallment ? quotedTotalInstallmentPayment : null,
     newCommitments,
+    commitmentSnowball,
+    instalmentTotalForComparison,
+    extraInstallmentCost,
     estimatedRemaining,
     hasIncomeRecords,
     hasCommitmentRecords,

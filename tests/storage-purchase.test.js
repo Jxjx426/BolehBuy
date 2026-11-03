@@ -5,6 +5,7 @@ import {
   getActiveBnplSummary,
   getTotals,
   localDateString,
+  calculatePurchaseImpact,
 } from "../js/calculations.js";
 import { createPurchaseRecord, validateSavedRecords } from "../js/storage.js";
 
@@ -67,6 +68,19 @@ test("Instalment creates a term-aware BNPL commitment for the exact monthly amou
   const totals = getTotals([...existingRecords, commitment], new Date("2026-03-01"), new Date("2026-01-31"));
   assert.equal(totals.commitments, 186.67);
   assert.equal(totals.expenses, 0);
+
+  const simulatorImpact = calculatePurchaseImpact([...existingRecords, commitment], {
+    name: "Course materials",
+    price: 180,
+    paymentMethod: "installment",
+    duration: 3,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 60,
+  }, new Date("2026-03-01"));
+  assert.equal(simulatorImpact.commitments, totals.commitments);
+  assert.equal(simulatorImpact.newCommitments, 246.67);
+  assert.equal(simulatorImpact.commitmentSnowball.existingMonthlyCommitments, totals.commitments);
 });
 
 test("legacy version-1 commitments remain ongoing without guessed dates", () => {

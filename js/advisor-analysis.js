@@ -8,7 +8,7 @@ export function createLocalAnalysis(payload) {
       ? "Consider waiting"
       : spendingAssessment.level === "careful"
         ? "Be careful"
-        : "Looks manageable";
+        : "Review the trade-offs";
 
   if (!recordsComplete) {
     const missing = missingRecords.join(" and ");
@@ -22,11 +22,15 @@ export function createLocalAnalysis(payload) {
 
   const risk = spendingAssessment.level === "risky" || spendingAssessment.level === "careful"
     ? spendingAssessment.reason
-    : "Unrecorded day-to-day costs or provider terms could still affect your budget.";
+    : "Unrecorded costs and provider terms may affect how this plan fits with other commitments.";
   let recommendedAction;
   if (purchase.paymentMethod === "pay-full") {
     recommendedAction = "Check this one-time cost against your other plans for the month.";
-  } else if (purchase.annualFlatInterestRate > 0 || purchase.additionalFees > 0) {
+  } else if (
+    purchase.annualFlatInterestRate > 0 ||
+    purchase.additionalFees > 0 ||
+    purchase.processingFeeExplicitlyShown === false
+  ) {
     recommendedAction = "Check the provider’s final total and repayment dates before confirming.";
   } else {
     recommendedAction = "Review how this plan stacks with your other active monthly commitments.";
@@ -38,7 +42,7 @@ export function createLocalAnalysis(payload) {
       ? "The recorded figures show a potential short-term squeeze."
       : spendingAssessment.level === "careful"
         ? "The recorded budget suggests taking a closer look before deciding."
-        : "The recorded figures do not show a clear short-term strain.",
+        : "Review how this monthly payment adds to your existing commitments.",
     keyRisk: risk,
     recommendedAction,
   };

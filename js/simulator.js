@@ -50,6 +50,7 @@ let pendingPurchase = null;
 let purchaseSubmissionId = null;
 let purchaseAdded = false;
 let scannerExtracted = false;
+let processingFeeExplicitlyShown = false;
 
 const extractionInputs = {
   itemName: itemNameInput,
@@ -78,7 +79,7 @@ function updateDurationVisibility() {
   durationInput.required = isInstallment;
   instalmentCostFields.hidden = !showDuration;
   interestRateInput.required = isInstallment;
-  additionalFeesInput.required = isInstallment;
+  additionalFeesInput.required = false;
   interestRateInput.disabled = !showDuration;
   additionalFeesInput.disabled = !showDuration;
 }
@@ -115,6 +116,8 @@ function applyCheckoutExtraction(extraction) {
   quotedMonthlyInstallmentInput.value = extraction.monthlyInstallment.value;
   quotedTotalInstallmentInput.value = extraction.totalInstallmentPayment.value;
   additionalFeesInput.value = extraction.processingFee.value;
+  processingFeeExplicitlyShown = ["high", "medium"].includes(extraction.processingFee.confidence) &&
+    Boolean(extraction.processingFee.value);
 
   for (const [field, data, label] of [
     ["itemName", extraction.itemName, "Product name"],
@@ -140,8 +143,7 @@ function applyCheckoutExtraction(extraction) {
     (extraction.paymentMethod.value === "pay-full" ||
       (extraction.durationMonths.value &&
         isValidDurationMonths(extractedDuration) &&
-        extraction.monthlyInstallment.value &&
-        extraction.processingFee.value)),
+        extraction.monthlyInstallment.value)),
   );
   document.querySelector("#scanner-message").textContent = complete
     ? "✨ AI extracted these details. Please check that they are accurate before calculating."
@@ -205,12 +207,68 @@ function renderImpact(impact) {
     ? "Not enough data"
     : `${metrics.commitmentRatioAfter.toFixed(2)}%`);
 
+  renderCommitmentSnowball(impact);
+  renderExtraInstallmentCost(impact);
   renderComparison(impact);
   renderTranslator(impact.totalPurchaseCost);
   purchaseDecision.hidden = false;
   purchaseSubmissionId ??= window.crypto?.randomUUID?.() ||
     `purchase-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   prepareAIAdvisor();
+}
+
+function renderCommitmentSnowball(impact) {
+  const snowball = impact.commitmentSnowball;
+  const hasCompleteSnowballData = impact.hasIncomeRecords &&
+    snowball.existingMonthlyCommitments !== null;
+  const before = hasCompleteSnowballData
+    ? currency(snowball.existingMonthlyCommitments)
+    : "Not enough data";
+  const after = hasCompleteSnowballData
+    ? currency(snowball.totalMonthlyCommitments)
+    : "Not enough data";
+  const difference = hasCompleteSnowballData
+    ? `+${currency(snowball.monthlyIncrease)}`
+    : "Not enough data";
+
+  setText("#snowball-existing-monthly", hasCompleteSnowballData ? `${before} /month` : before);
+  setText("#snowball-new-monthly", `+${currency(snowball.newMonthlyInstallment)} /month`);
+  setText("#snowball-total-monthly", hasCompleteSnowballData ? `${after} /month` : after);
+  setText("#snowball-existing-count", String(snowball.existingActiveBnplPlans));
+  setText("#snowball-new-count", String(snowball.newBnplPlans));
+  setText("#snowball-total-count", String(snowball.totalActiveBnplPlans));
+  setText("#snowball-before", hasCompleteSnowballData ? `${before} /month` : before);
+  setText("#snowball-after", hasCompleteSnowballData ? `${after} /month` : after);
+  setText("#snowball-difference", difference);
+}
+
+function renderExtraInstallmentCost(impact) {
+  const section = document.querySelector("#extra-installment-cost");
+  const details = document.querySelector("#extra-cost-details");
+  if (impact.paymentMethod !== "installment") {
+    section.hidden = true;
+    return;
+  }
+
+  section.hidden = false;
+  details.hidden = false;
+  setText("#extra-cost-cash-price", currency(impact.itemPrice));
+  setText("#extra-cost-total", currency(impact.instalmentTotalForComparison));
+  const extraCost = impact.extraInstallmentCost;
+  if (extraCost > 0) {
+    document.querySelector("#extra-cost-warning").hidden = false;
+    setText("#extra-cost-message", `You're paying ${currency(extraCost)} more through this instalment option.`);
+  } else {
+    document.querySelector("#extra-cost-warning").hidden = true;
+    setText("#extra-cost-message", extraCost < 0
+      ? `The displayed instalment total is ${currency(Math.abs(extraCost))} below the cash price. Verify whether a deposit or other charges are excluded.`
+      : "No extra instalment cost is shown in these figures.");
+  }
+  const feeNote = document.querySelector("#extra-cost-processing-fee");
+  feeNote.hidden = !impact.processingFeeExplicitlyShown;
+  if (impact.processingFeeExplicitlyShown) {
+    setText("#extra-cost-processing-fee", `Processing fee explicitly shown: ${currency(impact.additionalFees)}.`);
+  }
 }
 
 function createAdvisorPayload(impact) {
@@ -225,6 +283,7 @@ function createAdvisorPayload(impact) {
       duration: impact.duration,
       annualFlatInterestRate: impact.annualFlatInterestRate,
       additionalFees: impact.additionalFees,
+      processingFeeExplicitlyShown: impact.processingFeeExplicitlyShown,
       totalInterest: impact.totalInterest,
       totalPurchaseCost: impact.totalPurchaseCost,
       monthlyInstallment: impact.monthlyInstallment,
@@ -344,8 +403,8 @@ function readPurchaseDetails() {
     }
 
     const feeText = additionalFeesInput.value.trim();
-    additionalFees = Number(feeText);
-    if (!/^\d+(?:\.\d{1,2})?$/.test(feeText) ||
+    additionalFees = feeText ? Number(feeText) : 0;
+    if ((feeText && !/^\d+(?:\.\d{1,2})?$/.test(feeText)) ||
       !Number.isFinite(additionalFees) ||
       additionalFees < 0 ||
       additionalFees > 1_000_000) {
@@ -361,6 +420,7 @@ function readPurchaseDetails() {
       duration,
       annualFlatInterestRate,
       additionalFees,
+      processingFeeExplicitlyShown,
       quotedMonthlyInstallment,
       quotedTotalInstallmentPayment,
     },
@@ -467,6 +527,9 @@ export function initializeSimulator() {
 
   function onInputChange(event) {
     markExtractionEdited(event.target);
+    if (event.target === additionalFeesInput) {
+      processingFeeExplicitlyShown = Boolean(additionalFeesInput.value.trim());
+    }
     clearValidationError();
     resetPurchaseDecision();
     invalidateAIAdvice();

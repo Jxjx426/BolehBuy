@@ -194,6 +194,136 @@ test("commitment metrics preserve missing income or commitment data", () => {
   assert.equal(calculateCommitmentMetrics(noCommitments).totalMonthlyCommitments, null);
 });
 
+test("BNPL snowball counts only active BNPL plans and adds the new instalment once", () => {
+  const activeRecords = [
+    { type: "income", amount: 2200 },
+    { type: "commitment", category: "BNPL", amount: 400, startDate: "2026-10-01", endDate: "2026-12-01", status: "active" },
+    { type: "commitment", category: "BNPL", amount: 280 },
+    { type: "commitment", category: "BNPL", amount: 45, startDate: "2026-01-01", endDate: "2026-10-01", status: "active" },
+    { type: "commitment", category: "BNPL", amount: 30, status: "completed" },
+    { type: "commitment", category: "Bills", amount: 58 },
+    { type: "commitment", category: "Subscriptions", amount: 20 },
+  ];
+  const impact = calculatePurchaseImpact(activeRecords, {
+    name: "Study tablet",
+    price: 300,
+    paymentMethod: "installment",
+    duration: 6,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 50,
+    quotedTotalInstallmentPayment: 327,
+  }, referenceDate);
+
+  assert.deepEqual(impact.commitmentSnowball, {
+    existingActiveBnplPlans: 2,
+    newBnplPlans: 1,
+    totalActiveBnplPlans: 3,
+    existingMonthlyCommitments: 758,
+    newMonthlyInstallment: 50,
+    totalMonthlyCommitments: 808,
+    monthlyIncrease: 50,
+  });
+  assert.equal(impact.commitmentSnowball.existingMonthlyCommitments, getTotals(activeRecords, referenceDate, referenceDate).commitments);
+  assert.equal(impact.extraInstallmentCost, 27);
+});
+
+test("Pay in Full does not add an active BNPL plan or monthly commitment", () => {
+  const impact = calculatePurchaseImpact(records, {
+    name: "Textbook",
+    price: 90,
+    paymentMethod: "pay-full",
+    duration: null,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+  }, referenceDate);
+
+  assert.deepEqual(impact.commitmentSnowball, {
+    existingActiveBnplPlans: 0,
+    newBnplPlans: 0,
+    totalActiveBnplPlans: 0,
+    existingMonthlyCommitments: 100,
+    newMonthlyInstallment: 0,
+    totalMonthlyCommitments: 100,
+    monthlyIncrease: 0,
+  });
+  assert.equal(impact.extraInstallmentCost, null);
+});
+
+test("BNPL snowball shows missing commitment data instead of treating it as zero", () => {
+  const impact = calculatePurchaseImpact([
+    { type: "income", amount: 2000 },
+  ], {
+    name: "Laptop",
+    price: 300,
+    paymentMethod: "installment",
+    duration: 6,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 50,
+  }, referenceDate);
+
+  assert.deepEqual(impact.commitmentSnowball, {
+    existingActiveBnplPlans: 0,
+    newBnplPlans: 1,
+    totalActiveBnplPlans: 1,
+    existingMonthlyCommitments: null,
+    newMonthlyInstallment: 50,
+    totalMonthlyCommitments: null,
+    monthlyIncrease: null,
+  });
+  assert.equal(impact.assessment.level, "insufficient");
+});
+
+test("extra instalment cost uses an explicit total or monthly amount times duration", () => {
+  const purchase = {
+    name: "Headphones",
+    price: 300,
+    paymentMethod: "installment",
+    duration: 6,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 54.5,
+  };
+  const calculatedTotal = calculatePurchaseImpact(records, purchase, referenceDate);
+  const explicitTotal = calculatePurchaseImpact(records, {
+    ...purchase,
+    quotedTotalInstallmentPayment: 327,
+  }, referenceDate);
+  const explicitFee = calculatePurchaseImpact(records, {
+    ...purchase,
+    additionalFees: 7,
+    processingFeeExplicitlyShown: true,
+    quotedTotalInstallmentPayment: 327,
+  }, referenceDate);
+
+  assert.equal(calculatedTotal.instalmentTotalForComparison, 327);
+  assert.equal(calculatedTotal.extraInstallmentCost, 27);
+  assert.equal(calculatedTotal.processingFeeExplicitlyShown, false);
+  assert.equal(explicitTotal.instalmentTotalForComparison, 327);
+  assert.equal(explicitFee.extraInstallmentCost, 27);
+  assert.equal(explicitFee.processingFeeExplicitlyShown, true);
+  assert.equal(explicitFee.additionalFees, 7);
+});
+
+test("complete records do not trigger a Comfortable label based on payment thresholds", () => {
+  const impact = calculatePurchaseImpact([
+    { type: "income", amount: 100_000 },
+    { type: "commitment", amount: 10 },
+  ], {
+    name: "Small purchase",
+    price: 10,
+    paymentMethod: "installment",
+    duration: 12,
+    annualFlatInterestRate: 0,
+    additionalFees: 0,
+    quotedMonthlyInstallment: 1,
+  }, referenceDate);
+
+  assert.equal(impact.assessment.level, "informational");
+  assert.equal(impact.assessment.title, "Review the trade-offs");
+});
+
 test("active BNPL summary excludes bills, completed plans, future plans and expired plans", () => {
   const commitments = [
     { type: "commitment", category: "BNPL", amount: 30, startDate: "2026-10-01", endDate: "2026-12-01", status: "active" },

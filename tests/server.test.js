@@ -10,6 +10,7 @@ const validPayload = {
     duration: 6,
     annualFlatInterestRate: 0,
     additionalFees: 0,
+    processingFeeExplicitlyShown: false,
     totalInterest: 0,
     totalPurchaseCost: 1200,
     monthlyInstallment: 200,
@@ -119,6 +120,7 @@ test("checkout image extraction uses structured multimodal Gemini input", async 
   assert.deepEqual(body.extraction, validExtraction);
   assert.equal(request.model, "test-flash");
   assert.equal(request.config.responseMimeType, "application/json");
+  assert.match(request.config.systemInstruction, /explicitly labels that amount as a processing fee/);
   assert.ok(request.contents[0].parts.some((part) => part.inlineData?.mimeType === "image/jpeg"));
   assert.match(request.config.systemInstruction, /Never infer a cash price from instalment totals/);
   assert.match(request.config.systemInstruction, /If several prices are visible, explain the ambiguity/);
@@ -353,6 +355,32 @@ test("valid summary reaches Gemini with structured output and returns validated 
   assert.equal(request.config.httpOptions.retryOptions.attempts, 1);
   assert.equal(request.contents, JSON.stringify(validPayload));
   assert.doesNotMatch(JSON.stringify(body), /test-key/);
+});
+
+test("the advisor accepts the neutral commitment-tradeoff assessment", async () => {
+  const payload = structuredClone(validPayload);
+  payload.spendingAssessment = {
+    title: "Review the trade-offs",
+    reason: "This plan adds RM 50 per month to recorded commitments.",
+    level: "informational",
+  };
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: { models: { generateContent: async () => ({ text: JSON.stringify({
+      verdictLabel: "Review the trade-offs",
+      verdict: "Review how this plan adds to existing commitments.",
+      keyRisk: "Other unrecorded costs may affect your budget.",
+      recommendedAction: "Check repayment dates and total cost.",
+    }) }) } },
+  });
+  const response = await fetch(`${origin}/api/analyse-purchase`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).analysis.verdictLabel, "Review the trade-offs");
 });
 
 test("incomplete records are rejected before reaching Gemini", async () => {
