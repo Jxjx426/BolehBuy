@@ -485,6 +485,12 @@ h2 { color: #3c473e; font-size: 17px; font-weight: 800; letter-spacing: -.3px; l
 .translator-intro { color: #858a80; font-size: 9px; margin: 11px 0 10px; }
 .translator-intro strong { color: #4c5d4d; font-family: "Nunito", sans-serif; font-size: 11px; }
 .translator-list { display: grid; gap: 5px; grid-template-columns: 1fr; }
+.alternatives-mode-label { background: #edf2e8; border-radius: 20px; color: #52725b; display: inline-flex; font-size: 8px; font-weight: 800; justify-self: start; margin: 8px 0 0; padding: 6px 9px; }
+.alternatives-mode-label[hidden] { display: none; }
+.alternatives-mode-label.is-demo { background: #fff3da; color: #846a31; }
+.demo-alternative { background: #fbf5e7; border-color: #ede3ca; }
+.alternatives-retry { justify-self: start; margin-top: 9px; min-height: 34px; }
+.alternatives-retry[hidden] { display: none; }
 .translator-toggle { align-items: center; background: #fbf8ee; border: 1px dashed #e6ddc2; border-radius: 11px; color: #76826f; cursor: pointer; display: flex; font-size: 9px; font-weight: 700; gap: 8px; justify-content: center; margin-top: 12px; min-height: 37px; padding: 7px 10px; width: 100%; }
 .translator-toggle > span:first-child { color: #b59c57; font-size: 15px; }
 .translator-toggle-arrow { color: #9c9b8c; font-size: 14px; margin-left: auto; transition: transform .18s ease; }
