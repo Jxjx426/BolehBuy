@@ -85,3 +85,16 @@ export function pausePurchase(purchase, storage = getStorage(), timestamp = new 
 export function isCoolingPeriodComplete(item, now = Date.now()) {
   return now >= Date.parse(item.timestamp) + COOLING_PERIOD_MS;
 }
+
+export function getRemainingCoolingTime(item, now = Date.now()) {
+  const completesAt = Date.parse(item.timestamp) + COOLING_PERIOD_MS;
+  const complete = isCoolingPeriodComplete(item, now);
+  const ms = complete ? 0 : completesAt - now;
+  const totalMinutes = Math.ceil(ms / 60_000);
+  return {
+    ms,
+    hours: Math.floor(totalMinutes / 60),
+    minutes: totalMinutes % 60,
+    complete,
+  };
+}

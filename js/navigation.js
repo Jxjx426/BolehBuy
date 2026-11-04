@@ -1,5 +1,5 @@
 export function initializeNavigation() {
-  const allowedPages = new Set(["dashboard", "simulator"]);
+  const allowedPages = new Set(["dashboard", "simulator", "cooling-jar"]);
   const navigationLinks = [...document.querySelectorAll("[data-page]")]
     .filter((link) => allowedPages.has(link.dataset.page));
   const pages = [...document.querySelectorAll("[data-page-panel]")]
@@ -29,6 +29,7 @@ export function initializeNavigation() {
     breadcrumb.textContent = selectedLink.querySelector("span").textContent;
     sidebar.classList.remove("is-open");
     menuToggle.setAttribute("aria-expanded", "false");
+    document.dispatchEvent(new CustomEvent("pagechange", { detail: { pageName } }));
     return true;
   }
 

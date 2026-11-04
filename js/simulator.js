@@ -11,7 +11,8 @@ import {
   isValidDurationMonths,
 } from "./calculations.js";
 import {
-  isCoolingPeriodComplete,
+  COOLING_PERIOD_MS,
+  getRemainingCoolingTime,
   loadCoolingJarItems,
   pausePurchase,
 } from "./cooling-jar.js";
@@ -63,7 +64,13 @@ const cancelAddPurchaseButton = document.querySelector("#cancel-add-purchase");
 const coolingJarButton = document.querySelector("#cooling-jar-button");
 const coolingJarFeedback = document.querySelector("#cooling-jar-feedback");
 const coolingJarList = document.querySelector("#cooling-jar-list");
+const coolingJarEmpty = document.querySelector("#cooling-jar-empty");
+const coolingJarPage = document.querySelector("#cooling-jar");
+const coolingJarActionFeedback = document.querySelector("#cooling-jar-action-feedback");
+const coolingJarActionMessage = document.querySelector("#cooling-jar-action-message");
+const coolingJarActionLink = document.querySelector("#cooling-jar-action-link");
 let coolingJarExpiryTimer = null;
+let coolingJarInterval = null;
 let currentPurchaseImpact = null;
 let hasCalculatedPurchase = false;
 let pendingPurchase = null;
@@ -302,13 +309,18 @@ function setCoolingJarFeedback(message, isError = false) {
 function renderCoolingJarItems() {
   if (coolingJarExpiryTimer !== null) window.clearTimeout(coolingJarExpiryTimer);
   coolingJarExpiryTimer = null;
+  if (coolingJarInterval !== null) window.clearInterval(coolingJarInterval);
+  coolingJarInterval = null;
   coolingJarList.replaceChildren();
 
   const { items, error } = loadCoolingJarItems();
   if (error) {
+    coolingJarEmpty.hidden = true;
     setCoolingJarFeedback(error, true);
     return;
   }
+  coolingJarEmpty.hidden = items.length > 0;
+  coolingJarFeedback.hidden = true;
   if (items.length) {
     const heading = document.createElement("strong");
     heading.className = "cooling-jar-list-title";
@@ -316,24 +328,24 @@ function renderCoolingJarItems() {
     coolingJarList.append(heading);
   }
   for (const item of items) {
-    const complete = isCoolingPeriodComplete(item);
+    const remaining = getRemainingCoolingTime(item);
     const entry = document.createElement("div");
-    entry.className = `cooling-jar-entry${complete ? " is-complete" : ""}`;
+    entry.className = `cooling-jar-entry${remaining.complete ? " is-complete" : ""}`;
     const name = document.createElement("strong");
     name.textContent = item.itemName;
     const price = document.createElement("span");
     price.textContent = currency(item.price);
     const status = document.createElement("span");
     status.className = "cooling-jar-entry-status";
-    status.textContent = complete
+    status.textContent = remaining.complete
       ? "Cooling Period Complete — Ready to Decide"
-      : "72h cooling period active";
+      : `${remaining.hours}h ${String(remaining.minutes).padStart(2, "0")}m left`;
     entry.append(name, price, status);
     coolingJarList.append(entry);
   }
 
   const nextExpiry = items
-    .map((item) => Date.parse(item.timestamp) + 72 * 60 * 60 * 1000)
+    .map((item) => Date.parse(item.timestamp) + COOLING_PERIOD_MS)
     .filter((timestamp) => timestamp > Date.now())
     .sort((left, right) => left - right)[0];
   if (nextExpiry !== undefined) {
@@ -342,25 +354,53 @@ function renderCoolingJarItems() {
       Math.min(nextExpiry - Date.now() + 50, 2_147_000_000),
     );
   }
+  if (isCoolingJarPageVisible()) {
+    coolingJarInterval = window.setInterval(renderCoolingJarItems, 60_000);
+  }
+}
+
+function isCoolingJarPageVisible() {
+  return !document.hidden &&
+    !coolingJarPage.hidden &&
+    coolingJarPage.classList.contains("is-visible");
+}
+
+function clearCoolingJarTimers() {
+  if (coolingJarExpiryTimer !== null) window.clearTimeout(coolingJarExpiryTimer);
+  if (coolingJarInterval !== null) window.clearInterval(coolingJarInterval);
+  coolingJarExpiryTimer = null;
+  coolingJarInterval = null;
 }
 
 function putCurrentPurchaseInCoolingJar() {
   if (!currentPurchaseImpact || !hasCalculatedPurchase) {
-    setCoolingJarFeedback("Calculate a valid purchase before using the Cooling Jar.", true);
+    coolingJarActionMessage.textContent = "Calculate a valid purchase before using the Cooling Jar.";
+    coolingJarActionLink.hidden = true;
+    coolingJarActionFeedback.classList.add("is-error");
+    coolingJarActionFeedback.hidden = false;
     return;
   }
   const saved = pausePurchase(currentPurchaseImpact);
   if (saved.duplicate) {
-    setCoolingJarFeedback("This purchase calculation is already in your Cooling Jar.");
+    coolingJarActionMessage.textContent = "Already paused —";
+    coolingJarActionLink.hidden = false;
+    coolingJarActionFeedback.classList.remove("is-error");
+    coolingJarActionFeedback.hidden = false;
     renderCoolingJarItems();
     return;
   }
   if (!saved.success) {
-    setCoolingJarFeedback(saved.error || "This item could not be saved to the Cooling Jar.", true);
+    coolingJarActionMessage.textContent = saved.error || "This item could not be saved to the Cooling Jar.";
+    coolingJarActionLink.hidden = true;
+    coolingJarActionFeedback.classList.add("is-error");
+    coolingJarActionFeedback.hidden = false;
     return;
   }
 
-  setCoolingJarFeedback(`✨ Purchase paused for 72 hours! You just held back ${currency(saved.item.price)} (Potential Money Saved) to give yourself breathing room before deciding.`);
+  coolingJarActionMessage.textContent = "Paused —";
+  coolingJarActionLink.hidden = false;
+  coolingJarActionFeedback.classList.remove("is-error");
+  coolingJarActionFeedback.hidden = false;
   renderCoolingJarItems();
 }
 
@@ -574,6 +614,9 @@ function resetPurchaseDecision() {
   pendingPurchase = null;
   purchaseSubmissionId = null;
   purchaseAdded = false;
+  coolingJarActionFeedback.hidden = true;
+  coolingJarActionLink.hidden = true;
+  coolingJarActionFeedback.classList.remove("is-error");
   purchaseConfirmation.hidden = true;
   purchaseSuccess.hidden = true;
   purchaseSaveError.hidden = true;
@@ -658,8 +701,19 @@ export function initializeSimulator() {
   initializeAIAdvisor(() => currentPurchaseImpact ? createAdvisorPayload(currentPurchaseImpact) : null);
   initializeCheckoutScanner(applyCheckoutExtraction);
   renderCoolingJarItems();
+  document.addEventListener("pagechange", (event) => {
+    if (event.detail?.pageName === "cooling-jar") {
+      renderCoolingJarItems();
+    } else {
+      clearCoolingJarTimers();
+    }
+  });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) renderCoolingJarItems();
+    if (document.hidden) {
+      clearCoolingJarTimers();
+    } else if (isCoolingJarPageVisible()) {
+      renderCoolingJarItems();
+    }
   });
   function onInputChange(event) {
     markExtractionEdited(event.target);

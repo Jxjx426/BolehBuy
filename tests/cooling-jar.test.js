@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   COOLING_JAR_STORAGE_KEY,
   COOLING_PERIOD_MS,
+  getRemainingCoolingTime,
   isCoolingPeriodComplete,
   loadCoolingJarItems,
   pausePurchase,
@@ -62,6 +63,39 @@ test("Cooling Jar entries persist and expire 72 hours after their saved timestam
   assert.deepEqual(restored.items, [saved.item]);
   assert.equal(isCoolingPeriodComplete(saved.item, timestamp.getTime() + COOLING_PERIOD_MS - 1), false);
   assert.equal(isCoolingPeriodComplete(saved.item, timestamp.getTime() + COOLING_PERIOD_MS), true);
+});
+
+test("remaining Cooling Jar time shares the exact expiry boundary", () => {
+  const timestamp = new Date("2026-11-03T08:00:00.000Z");
+  const item = { timestamp: timestamp.toISOString() };
+  const now = timestamp.getTime() + 48 * 60 * 60 * 1000 + 46 * 60 * 1000;
+  const remaining = getRemainingCoolingTime(item, now);
+
+  assert.deepEqual(remaining, {
+    ms: 23 * 60 * 60 * 1000 + 14 * 60 * 1000,
+    hours: 23,
+    minutes: 14,
+    complete: false,
+  });
+  assert.equal(remaining.complete, isCoolingPeriodComplete(item, now));
+
+  const expiry = timestamp.getTime() + COOLING_PERIOD_MS;
+  assert.deepEqual(getRemainingCoolingTime(item, expiry - 1), {
+    ms: 1,
+    hours: 0,
+    minutes: 1,
+    complete: false,
+  });
+  assert.deepEqual(getRemainingCoolingTime(item, expiry), {
+    ms: 0,
+    hours: 0,
+    minutes: 0,
+    complete: true,
+  });
+  assert.equal(
+    getRemainingCoolingTime(item, expiry).complete,
+    isCoolingPeriodComplete(item, expiry),
+  );
 });
 
 test("Cooling Jar returns graceful errors when storage is unavailable or corrupt", () => {

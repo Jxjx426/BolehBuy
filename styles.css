@@ -562,6 +562,14 @@ h2 { color: #3c473e; font-size: 17px; font-weight: 800; letter-spacing: -.3px; l
 .cooling-jar-feedback { background: #edf4e9; border-radius: 9px; color: #536d52; font-size: 10px; line-height: 1.5; padding: 10px 12px; }
 .cooling-jar-feedback.is-error { background: #fbefea; color: #96614f; }
 .cooling-jar-feedback[hidden] { display: none; }
+.cooling-jar-panel { padding: 19px; }
+.cooling-jar-panel .cooling-jar-feedback { margin-bottom: 12px; }
+.cooling-jar-empty { color: #858e80; font-size: 11px; line-height: 1.55; margin: 0; }
+.cooling-jar-empty[hidden] { display: none; }
+.cooling-jar-action-feedback { align-items: center; background: #edf4e9; border-radius: 9px; color: #536d52; display: flex; flex-wrap: wrap; font-size: 10px; gap: 4px; line-height: 1.5; margin: 0; padding: 9px 11px; }
+.cooling-jar-action-feedback[hidden], .cooling-jar-action-link[hidden] { display: none; }
+.cooling-jar-action-feedback.is-error { background: #fbefea; color: #96614f; }
+.cooling-jar-action-feedback a { color: var(--sage-deep); font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
 .cooling-jar-list { display: grid; gap: 6px; }
 .cooling-jar-list:empty { display: none; }
 .cooling-jar-list-title { color: #66745f; font-size: 9px; }

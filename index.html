@@ -44,6 +44,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18.5v-13Z" /><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2" /></svg>
             <span>BolehBuy? Simulator</span>
           </a>
+          <a class="nav-link" href="#cooling-jar" data-page="cooling-jar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h8M9 3.5v3L6.5 9v9A2.5 2.5 0 0 0 9 20.5h6a2.5 2.5 0 0 0 2.5-2.5V9L15 6.5v-3" /><path d="M7 11h10m-7 3.5c1.4-1.6 2.6-1.6 4 0" /></svg>
+            <span>Cooling Jar</span>
+          </a>
         </nav>
 
         <div class="sidebar-note">
@@ -296,7 +300,6 @@
                   <div class="advisor-insight-line"><strong>Key Risk</strong><p id="advisor-key-risk"></p></div>
                   <div class="advisor-insight-line"><strong>Recommended Action</strong><p id="advisor-recommended-action"></p></div>
                 </div>
-                <p class="advisor-ratio-note">Based on recorded monthly commitments and income; this is not an affordability score.</p>
               </section>
               <section class="panel result-panel compare-panel" id="simulator-comparison" aria-labelledby="comparison-title" hidden>
                 <div class="result-heading"><span class="result-icon doodle-paw" aria-hidden="true"><svg viewBox="0 0 32 32"><ellipse cx="9" cy="10" rx="2.4" ry="3.1" /><ellipse cx="15" cy="7.5" rx="2.4" ry="3.1" /><ellipse cx="21.5" cy="9.5" rx="2.4" ry="3.1" /><ellipse cx="25" cy="15" rx="2.2" ry="2.8" /><path d="M16.5 14c-3.7 0-8.3 5.2-8.3 8.6a5.3 5.3 0 0 0 5.3 5.1c1.4 0 2.2-.8 3.2-.8s1.8.8 3.2.8a5.3 5.3 0 0 0 5.3-5.1c0-3.4-4.8-8.6-8.7-8.6Z" /></svg></span><h2 id="comparison-title">Buy vs Don’t Buy</h2></div>
@@ -367,6 +370,10 @@
                     <span aria-hidden="true">🫙</span><span>Put in 72-Hour Cooling Jar</span>
                   </button>
                 </div>
+                <p class="cooling-jar-action-feedback" id="cooling-jar-action-feedback" role="status" aria-live="polite" hidden>
+                  <span id="cooling-jar-action-message">Paused —</span>
+                  <a id="cooling-jar-action-link" href="#cooling-jar" data-page="cooling-jar" hidden>check Cooling Jar</a>
+                </p>
                 <div class="purchase-confirmation" id="purchase-confirmation" hidden>
                   <h3>Confirm this purchase</h3>
                   <dl class="purchase-confirmation-details">
@@ -392,10 +399,23 @@
                   <a class="secondary-button purchase-dashboard-link" href="#dashboard" data-page="dashboard"><span>View Dashboard</span><span aria-hidden="true">→</span></a>
                 </div>
               </section>
-              <div class="cooling-jar-feedback" id="cooling-jar-feedback" role="status" aria-live="polite" hidden></div>
-              <div class="cooling-jar-list" id="cooling-jar-list" aria-label="Paused in Cooling Jar"></div>
             </div>
           </div>
+        </section>
+
+        <section class="page" id="cooling-jar" data-page-panel="cooling-jar" aria-labelledby="cooling-jar-title" hidden>
+          <div class="welcome-row page-intro">
+            <div>
+              <p class="eyebrow">A LITTLE SPACE BEFORE YOU DECIDE <span class="eyebrow-star">✳</span></p>
+              <h1 id="cooling-jar-title">Cooling Jar</h1>
+              <p class="welcome-copy">Purchases you've paused instead of deciding right away.</p>
+            </div>
+          </div>
+          <section class="panel cooling-jar-panel" aria-label="Paused purchases">
+            <div class="cooling-jar-feedback" id="cooling-jar-feedback" role="status" aria-live="polite" hidden></div>
+            <p class="cooling-jar-empty" id="cooling-jar-empty">Your jar is empty for now. Pause a purchase from the Simulator to add it here.</p>
+            <div class="cooling-jar-list" id="cooling-jar-list" aria-label="Paused in Cooling Jar"></div>
+          </section>
         </section>
 
         <section class="page" id="scam-checker" data-page-panel="scam-checker" aria-labelledby="scam-title" hidden inert aria-hidden="true">
