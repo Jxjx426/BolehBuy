@@ -47,6 +47,7 @@ const formError = document.querySelector("#simulator-form-error");
 const emptyResult = document.querySelector("#simulator-empty");
 const result = document.querySelector("#simulator-result");
 const comparison = document.querySelector("#simulator-comparison");
+const resultsArea = document.querySelector(".simulator-results");
 const advisorSummary = document.querySelector("#advisor-summary");
 const advisorSection = document.querySelector("#ai-advisor");
 const advisorTyping = document.querySelector("#advisor-typing");
@@ -287,6 +288,7 @@ function showResultsImmediately() {
 function renderImpact(impact, staged = false) {
   emptyResult.hidden = true;
   result.hidden = false;
+  resetResultAccordion();
   renderExtraInstallmentCost(impact);
   renderComparison(impact);
   renderTranslator(impact.totalPurchaseCost);
@@ -298,6 +300,22 @@ function renderImpact(impact, staged = false) {
   prepareAIAdvisor();
   if (staged) stageResultSections();
   else showResultsImmediately();
+}
+
+function resetResultAccordion() {
+  document.querySelectorAll("[data-result-toggle][aria-controls]").forEach((button) => {
+    const expanded = button.id === "advisor-summary-title";
+    const body = document.getElementById(button.getAttribute("aria-controls"));
+    button.setAttribute("aria-expanded", String(expanded));
+    body.classList.toggle("is-open", expanded);
+  });
+}
+
+function toggleResultAccordion(button) {
+  const expanded = button.getAttribute("aria-expanded") !== "true";
+  const body = document.getElementById(button.getAttribute("aria-controls"));
+  button.setAttribute("aria-expanded", String(expanded));
+  body.classList.toggle("is-open", expanded);
 }
 
 function setCoolingJarFeedback(message, isError = false) {
@@ -700,6 +718,10 @@ function updateResultsFromForm() {
 export function initializeSimulator() {
   initializeAIAdvisor(() => currentPurchaseImpact ? createAdvisorPayload(currentPurchaseImpact) : null);
   initializeCheckoutScanner(applyCheckoutExtraction);
+  resultsArea.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-result-toggle][aria-controls]");
+    if (button) toggleResultAccordion(button);
+  });
   renderCoolingJarItems();
   document.addEventListener("pagechange", (event) => {
     if (event.detail?.pageName === "cooling-jar") {
