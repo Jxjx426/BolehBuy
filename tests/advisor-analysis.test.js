@@ -29,12 +29,13 @@ test("local advisor flags missing financial records without treating them as zer
   });
 
   assert.equal(analysis.verdictLabel, "Not enough information");
-  assert.match(analysis.verdict, /monthly income and monthly commitments/);
-  assert.match(analysis.keyRisk, /Missing records/);
+  assert.match(analysis.mamakText, /Aiyo dik/);
+  assert.match(analysis.mamakText, /monthly income and monthly commitments/);
+  assert.match(analysis.keyRisk, /incomplete/i);
   assert.match(analysis.recommendedAction, /Add monthly income and monthly commitments/);
   assert.doesNotMatch(JSON.stringify(analysis), /RM 0/);
-  assert.deepEqual(Object.keys(analysis), ["verdictLabel", "verdict", "keyRisk", "recommendedAction"]);
-  assert.ok(Object.values(analysis).every((text) => typeof text === "string" && text.length <= 180));
+  assert.deepEqual(Object.keys(analysis), ["verdictLabel", "mamakText", "keyRisk", "recommendedAction"]);
+  assert.ok(Object.values(analysis).every((text) => typeof text === "string" && text.length <= 280));
 });
 
 test("local advisor recommends reviewing the commitment stack without declaring it manageable", () => {
@@ -60,8 +61,10 @@ test("local advisor recommends reviewing the commitment stack without declaring 
   });
 
   assert.equal(analysis.verdictLabel, "Review the trade-offs");
+  assert.match(analysis.mamakText, /Aiyo dik/);
+  assert.match(analysis.mamakText, /lah|ah|kan|oh/);
   assert.match(analysis.recommendedAction, /provider’s final total/);
-  assert.match(analysis.keyRisk, /Unrecorded costs/);
+  assert.match(analysis.keyRisk, /unrecorded costs/i);
 });
 
 test("local advisor does not infer a zero processing fee from an empty field", () => {

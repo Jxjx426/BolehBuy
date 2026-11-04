@@ -5,7 +5,6 @@ import {
 } from "./checkout-scanner.js";
 import {
   calculateCommitmentMetrics,
-  calculateApproximateDailyEquivalent,
   calculateCostEquivalents,
   calculatePurchaseImpact,
   currency,
@@ -24,8 +23,13 @@ import {
   initializeAIAdvisor,
   invalidateAIAdvice,
   analyzeCurrentPurchase,
+  animateAdvisorRatio,
   prepareAIAdvisor,
 } from "./ai-advisor.js";
+import {
+  clearPurchaseAlternatives,
+  loadPurchaseAlternatives,
+} from "./alternative-suggestions.js";
 
 const form = document.querySelector("#simulator-form");
 const itemNameInput = document.querySelector("#item-name");
@@ -42,7 +46,13 @@ const formError = document.querySelector("#simulator-form-error");
 const emptyResult = document.querySelector("#simulator-empty");
 const result = document.querySelector("#simulator-result");
 const comparison = document.querySelector("#simulator-comparison");
+const advisorSummary = document.querySelector("#advisor-summary");
+const advisorSection = document.querySelector("#ai-advisor");
+const advisorTyping = document.querySelector("#advisor-typing");
+const alternativesSection = document.querySelector("#purchase-alternatives");
 const translator = document.querySelector("#cost-translator");
+const translatorToggle = document.querySelector("#translator-toggle");
+const translatorContent = document.querySelector("#translator-content");
 const purchaseDecision = document.querySelector("#purchase-decision");
 const openPurchaseConfirmationButton = document.querySelector("#open-purchase-confirmation");
 const purchaseConfirmation = document.querySelector("#purchase-confirmation");
@@ -53,7 +63,6 @@ const cancelAddPurchaseButton = document.querySelector("#cancel-add-purchase");
 const coolingJarButton = document.querySelector("#cooling-jar-button");
 const coolingJarFeedback = document.querySelector("#cooling-jar-feedback");
 const coolingJarList = document.querySelector("#cooling-jar-list");
-const advisorViewButtons = [...document.querySelectorAll("[data-advisor-view]")];
 let coolingJarExpiryTimer = null;
 let currentPurchaseImpact = null;
 let hasCalculatedPurchase = false;
@@ -62,6 +71,18 @@ let purchaseSubmissionId = null;
 let purchaseAdded = false;
 let scannerExtracted = false;
 let processingFeeExplicitlyShown = false;
+let resultRevealTimers = [];
+
+const revealObserver = typeof IntersectionObserver === "function"
+  ? new IntersectionObserver((entries, observer) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("is-revealed");
+      if (entry.target === advisorSummary) animateAdvisorRatio();
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.08 })
+  : null;
 
 const extractionInputs = {
   itemName: itemNameInput,
@@ -200,61 +221,76 @@ function setText(selector, value) {
   document.querySelector(selector).textContent = value;
 }
 
-function renderImpact(impact) {
+function clearResultRevealTimers() {
+  resultRevealTimers.forEach((timer) => window.clearTimeout(timer));
+  resultRevealTimers = [];
+}
+
+function resetResultRevealStyles() {
+  [advisorSummary, comparison, advisorSection, alternativesSection, translator, purchaseDecision].forEach((section) => {
+    revealObserver?.unobserve(section);
+    section.classList.remove("result-reveal", "is-revealed", "is-typing");
+  });
+  advisorTyping.hidden = true;
+}
+
+function revealResultSection(section) {
+  section.hidden = false;
+  section.classList.add("result-reveal");
+  if (revealObserver) {
+    requestAnimationFrame(() => revealObserver.observe(section));
+  } else {
+    section.classList.add("is-revealed");
+    if (section === advisorSummary) animateAdvisorRatio();
+  }
+}
+
+function stageResultSections() {
+  clearResultRevealTimers();
+  resetResultRevealStyles();
+  [advisorSummary, comparison, advisorSection, alternativesSection, translator, purchaseDecision].forEach((section) => {
+    section.hidden = true;
+    section.classList.add("result-reveal");
+  });
+
+  revealResultSection(advisorSummary);
+  resultRevealTimers.push(window.setTimeout(() => revealResultSection(comparison), 150));
+  resultRevealTimers.push(window.setTimeout(() => {
+    revealResultSection(advisorSection);
+    advisorSection.classList.add("is-typing");
+    advisorTyping.hidden = false;
+    resultRevealTimers.push(window.setTimeout(() => {
+      advisorSection.classList.remove("is-typing");
+      advisorTyping.hidden = true;
+    }, 500));
+  }, 300));
+  resultRevealTimers.push(window.setTimeout(() => revealResultSection(alternativesSection), 950));
+  resultRevealTimers.push(window.setTimeout(() => revealResultSection(translator), 1_150));
+  resultRevealTimers.push(window.setTimeout(() => revealResultSection(purchaseDecision), 1_300));
+}
+
+function showResultsImmediately() {
+  clearResultRevealTimers();
+  resetResultRevealStyles();
+  [advisorSummary, comparison, advisorSection, translator, purchaseDecision].forEach((section) => {
+    section.hidden = false;
+  });
+}
+
+function renderImpact(impact, staged = false) {
   emptyResult.hidden = true;
   result.hidden = false;
-  renderCommitmentSnowball(impact);
   renderExtraInstallmentCost(impact);
-  renderAdvisorPersonality(impact);
   renderComparison(impact);
   renderTranslator(impact.totalPurchaseCost);
+  translatorContent.hidden = true;
+  translatorToggle.setAttribute("aria-expanded", "false");
   purchaseDecision.hidden = false;
   purchaseSubmissionId ??= window.crypto?.randomUUID?.() ||
     `purchase-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   prepareAIAdvisor();
-}
-
-function renderAdvisorPersonality(impact) {
-  const isInstallment = impact.paymentMethod === "installment";
-  const dailyEquivalent = calculateApproximateDailyEquivalent(impact.monthlyInstallment);
-  setText("#marketing-framing", isInstallment && dailyEquivalent !== null
-    ? `Checkout framing: “Only ${currency(dailyEquivalent)}/day?”`
-    : `Pay in Full shows the full ${currency(impact.itemPrice)} cost upfront.`);
-  setText("#marketing-monthly", isInstallment
-    ? `Actual monthly instalment: ${currency(impact.monthlyInstallment)} /month. The daily amount is an approximate equivalent, not an actual daily payment.`
-    : "Actual monthly instalment: RM 0 (Pay in Full). No daily equivalent applies.");
-
-  const snowball = impact.commitmentSnowball;
-  const summary = !isInstallment
-    ? `Dik, paying in full adds no monthly instalment. It is a one-time ${currency(impact.itemPrice)} cost, so check how it fits with the rest of the month.`
-    : snowball.existingMonthlyCommitments === null
-      ? `Dik, this adds ${currency(impact.monthlyInstallment)} per month. Your existing commitment records are incomplete, so I can't show the full monthly stack yet.`
-      : `Dik, this adds ${currency(impact.monthlyInstallment)} per month. Recorded commitments go from ${currency(snowball.existingMonthlyCommitments)} to ${currency(snowball.totalMonthlyCommitments)} /month. That's the monthly lock-in to think about.`;
-  setText("#mamak-summary", summary);
-
-  const extraCost = document.querySelector("#mamak-extra-cost");
-  if (isInstallment && impact.extraInstallmentCost > 0) {
-    const source = impact.quotedTotalInstallmentPayment !== null
-      ? "Based on the total you entered"
-      : "Estimated from monthly instalment × duration";
-    extraCost.textContent = `${source}, this option costs ${currency(impact.extraInstallmentCost)} more than the cash price. That's not necessarily a processing fee, and charges not shown may change the total.`;
-    extraCost.hidden = false;
-  } else {
-    extraCost.textContent = "";
-    extraCost.hidden = true;
-  }
-  setText("#smart-dupe-direction", "If it isn't essential, compare a basic wired or entry-level version you can pay for in cash, or wait for a payday sale—no new instalment needed.");
-}
-
-function setAdvisorView(view) {
-  const showMarketing = view === "marketing";
-  document.querySelector("#marketing-view").hidden = !showMarketing;
-  document.querySelector("#mamak-view").hidden = showMarketing;
-  for (const button of advisorViewButtons) {
-    const selected = button.dataset.advisorView === view;
-    button.classList.toggle("is-active", selected);
-    button.setAttribute("aria-selected", String(selected));
-  }
+  if (staged) stageResultSections();
+  else showResultsImmediately();
 }
 
 function setCoolingJarFeedback(message, isError = false) {
@@ -328,25 +364,16 @@ function putCurrentPurchaseInCoolingJar() {
   renderCoolingJarItems();
 }
 
-function renderCommitmentSnowball(impact) {
-  const snowball = impact.commitmentSnowball;
-  const hasCompleteSnowballData = impact.hasIncomeRecords &&
-    snowball.existingMonthlyCommitments !== null;
-  const before = hasCompleteSnowballData
-    ? currency(snowball.existingMonthlyCommitments)
-    : "Not enough data";
-  const after = hasCompleteSnowballData
-    ? currency(snowball.totalMonthlyCommitments)
-    : "Not enough data";
-  const difference = hasCompleteSnowballData
-    ? `+${currency(snowball.monthlyIncrease)} /month`
-    : "Not enough data";
-
-  setText("#snowball-before", hasCompleteSnowballData ? `${before} /month` : before);
-  setText("#snowball-after", hasCompleteSnowballData ? `${after} /month` : after);
-  setText("#snowball-difference", difference);
-
+function renderComparison(impact) {
+  comparison.hidden = false;
+  const hasFinancialData = impact.hasIncomeRecords && impact.hasCommitmentRecords;
+  const hasCommitmentData = impact.hasCommitmentRecords;
   const isPayFull = impact.paymentMethod === "pay-full";
+  setText("#comparison-dont-buy-remaining", hasFinancialData ? currency(impact.remaining) : "Not enough data");
+  setText("#comparison-buy-remaining", hasFinancialData ? currency(impact.estimatedRemaining) : "Not enough data");
+  setText("#comparison-dont-buy-commitments", hasCommitmentData ? currency(impact.commitments) : "Not enough data");
+  setText("#comparison-buy-commitments", hasCommitmentData ? currency(impact.newCommitments) : "Not enough data");
+
   const planSummary = document.querySelector("#snowball-plan-summary");
   const payFullImpact = document.querySelector("#pay-full-impact");
   planSummary.hidden = isPayFull;
@@ -354,8 +381,8 @@ function renderCommitmentSnowball(impact) {
   if (isPayFull) {
     setText("#pay-full-impact", `One-time purchase: ${currency(impact.itemPrice)}; no added monthly commitment.`);
   } else {
-    setText("#snowball-plan-summary", hasCompleteSnowballData
-      ? `${snowball.existingActiveBnplPlans} active BNPL ${snowball.existingActiveBnplPlans === 1 ? "plan" : "plans"} → ${snowball.totalActiveBnplPlans} after this purchase`
+    setText("#snowball-plan-summary", hasCommitmentData
+      ? `${impact.commitmentSnowball.existingActiveBnplPlans} → ${impact.commitmentSnowball.totalActiveBnplPlans} active BNPL plans`
       : "Not enough data to show active BNPL plan counts.");
   }
 }
@@ -429,23 +456,6 @@ function createAdvisorPayload(impact) {
       level: impact.assessment.level,
     },
   };
-}
-
-function renderComparison(impact) {
-  comparison.hidden = false;
-  const hasFinancialData = impact.hasIncomeRecords && impact.hasCommitmentRecords;
-  const hasCommitmentData = impact.hasCommitmentRecords;
-  setText("#comparison-dont-buy-remaining", hasFinancialData ? currency(impact.remaining) : "Not enough data");
-  setText("#comparison-buy-remaining", hasFinancialData ? currency(impact.estimatedRemaining) : "Not enough data");
-  setText("#comparison-dont-buy-commitments", hasCommitmentData ? currency(impact.commitments) : "Not enough data");
-  setText("#comparison-buy-commitments", hasCommitmentData ? currency(impact.newCommitments) : "Not enough data");
-  let summary = "Some financial records are missing, so estimated remaining money or commitments cannot be fully compared.";
-  if (hasFinancialData) {
-    summary = impact.paymentMethod === "pay-full"
-      ? `Paying in full changes estimated remaining money by ${currency(impact.itemPrice)}; monthly commitments stay the same.`
-      : `Buying changes estimated remaining money by ${currency(impact.monthlyInstallment)} and increases monthly commitments by the same amount.`;
-  }
-  setText("#comparison-summary", summary);
 }
 
 function renderTranslator(price) {
@@ -542,12 +552,21 @@ function readPurchaseDetails() {
 }
 
 function hidePurchaseResults() {
+  clearResultRevealTimers();
+  resetResultRevealStyles();
   result.hidden = true;
   comparison.hidden = true;
   translator.hidden = true;
   purchaseDecision.hidden = true;
   purchaseConfirmation.hidden = true;
-  document.querySelector("#ai-advisor").hidden = true;
+  advisorSummary.hidden = true;
+  advisorSection.hidden = true;
+  alternativesSection.hidden = true;
+  translator.hidden = true;
+  purchaseDecision.hidden = true;
+  translatorContent.hidden = true;
+  translatorToggle.setAttribute("aria-expanded", "false");
+  clearPurchaseAlternatives();
   emptyResult.hidden = false;
 }
 
@@ -642,12 +661,9 @@ export function initializeSimulator() {
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) renderCoolingJarItems();
   });
-  advisorViewButtons.forEach((button) => {
-    button.addEventListener("click", () => setAdvisorView(button.dataset.advisorView));
-  });
-
   function onInputChange(event) {
     markExtractionEdited(event.target);
+    clearPurchaseAlternatives();
     if (event.target === additionalFeesInput) {
       processingFeeExplicitlyShown = Boolean(additionalFeesInput.value.trim());
     }
@@ -657,9 +673,9 @@ export function initializeSimulator() {
     updateResultsFromForm();
   }
 
-  paymentMethodInput.addEventListener("change", () => {
+  paymentMethodInput.addEventListener("change", (event) => {
     updateDurationVisibility();
-    onInputChange();
+    onInputChange(event);
   });
   form.addEventListener("input", onInputChange);
   form.addEventListener("change", onInputChange);
@@ -678,8 +694,15 @@ export function initializeSimulator() {
     const impact = calculatePurchaseImpact(getRecords(), details.purchase);
     currentPurchaseImpact = impact;
     hasCalculatedPurchase = true;
-    renderImpact(impact);
+    renderImpact(impact, true);
     void analyzeCurrentPurchase();
+    void loadPurchaseAlternatives(impact.itemName, impact.itemPrice);
+  });
+
+  translatorToggle.addEventListener("click", () => {
+    const expanded = translatorToggle.getAttribute("aria-expanded") !== "true";
+    translatorToggle.setAttribute("aria-expanded", String(expanded));
+    translatorContent.hidden = !expanded;
   });
 
   openPurchaseConfirmationButton.addEventListener("click", openPurchaseConfirmation);

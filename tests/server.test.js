@@ -42,7 +42,7 @@ const validPayload = {
 
 const validAnalysis = {
   verdictLabel: "Be careful",
-  verdict: "The payment leaves less room for other plans this month.",
+  mamakText: "Aiyo dik, this monthly payment ah? Small small also add up one lah. Can still handle your other plans or not?",
   keyRisk: "Unrecorded expenses could make the plan tighter.",
   recommendedAction: "Check the payment dates against your regular bills.",
 };
@@ -187,6 +187,110 @@ test("text extraction preserves a missing instalment period instead of guessing"
   assert.deepEqual(body.extraction.durationMonths, { value: "", confidence: "not_found" });
   assert.match(body.extraction.warnings[0], /not visible/);
   assert.equal(request.contents[0].parts.some((part) => part.inlineData), false);
+});
+
+test("purchase alternatives use Google Search and return only cited cheaper products", async () => {
+  let request;
+  const sourceUrl = "https://example.com/products/headphones";
+  const origin = await startServer({
+    apiKey: "test-key",
+    model: "test-flash",
+    aiClient: {
+      models: {
+        generateContent: async (value) => {
+          request = value;
+          return {
+            text: JSON.stringify({
+              alternatives: [
+                {
+                  productName: "Example Wired Headphones",
+                  estimatedPrice: 89.9,
+                  reason: "A simpler wired option listed below the entered price.",
+                  sourceUrl,
+                },
+                {
+                  productName: "Uncited Headphones",
+                  estimatedPrice: 49,
+                  reason: "No grounding source supports this listing.",
+                  sourceUrl: "https://unverified.example/item",
+                },
+                {
+                  productName: "More Expensive Headphones",
+                  estimatedPrice: 400,
+                  reason: "This is not cheaper.",
+                  sourceUrl,
+                },
+              ],
+            }),
+            candidates: [{
+              groundingMetadata: {
+                groundingChunks: [{ web: { uri: sourceUrl, title: "Example Malaysia Store" } }],
+              },
+            }],
+          };
+        },
+      },
+    },
+  });
+  const response = await fetch(`${origin}/api/purchase-alternatives`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemName: "Wireless Headphones", itemPrice: 250 }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.alternatives.length, 1);
+  assert.deepEqual(body.alternatives[0], {
+    productName: "Example Wired Headphones",
+    estimatedPrice: 89.9,
+    reason: "A simpler wired option listed below the entered price.",
+    source: { url: sourceUrl, title: "Example Malaysia Store" },
+  });
+  assert.deepEqual(request.config.tools, [{ googleSearch: {} }]);
+  assert.deepEqual(request.config.responseSchema.required, ["alternatives"]);
+  assert.match(request.config.systemInstruction, /Return an empty alternatives array/);
+});
+
+test("purchase alternatives reject invalid input and do not accept unsupported source URLs", async () => {
+  let called = false;
+  const origin = await startServer({
+    apiKey: "test-key",
+    aiClient: {
+      models: {
+        generateContent: async () => {
+          called = true;
+          return {
+            text: JSON.stringify({
+              alternatives: [{
+                productName: "Unverified product",
+                estimatedPrice: 10,
+                reason: "A claimed lower price.",
+                sourceUrl: "https://unverified.example/item",
+              }],
+            }),
+            candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+          };
+        },
+      },
+    },
+  });
+  const invalid = await fetch(`${origin}/api/purchase-alternatives`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemName: "", itemPrice: 100 }),
+  });
+  assert.equal(invalid.status, 400);
+  assert.equal(called, false);
+
+  const unverified = await fetch(`${origin}/api/purchase-alternatives`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemName: "Headphones", itemPrice: 100 }),
+  });
+  assert.equal(unverified.status, 502);
+  assert.equal((await unverified.json()).error.code, "UNVERIFIED_ALTERNATIVES");
+  assert.equal(called, true);
 });
 
 test("unreadable checkout can return explicit not-found fields without invented amounts", async () => {
@@ -384,10 +488,12 @@ test("valid summary reaches Gemini with structured output and returns validated 
   assert.equal(request.model, "test-flash");
   assert.equal(request.config.responseMimeType, "application/json");
   assert.match(request.config.systemInstruction, /source of truth/);
-  assert.match(request.config.systemInstruction, /under 180 characters/);
+  assert.match(request.config.systemInstruction, /Manglish particles/);
+  assert.match(request.config.systemInstruction, /Do not restate figures in formal sentence structures/);
+  assert.match(request.config.systemInstruction, /4\./);
   assert.deepEqual(request.config.responseSchema.required, [
     "verdictLabel",
-    "verdict",
+    "mamakText",
     "keyRisk",
     "recommendedAction",
   ]);
@@ -408,7 +514,7 @@ test("the advisor accepts the neutral commitment-tradeoff assessment", async () 
     apiKey: "test-key",
     aiClient: { models: { generateContent: async () => ({ text: JSON.stringify({
       verdictLabel: "Review the trade-offs",
-      verdict: "Review how this plan adds to existing commitments.",
+      mamakText: "Aiyo dik, this plan adds a monthly payment lah. Check the dates first, can manage or not?",
       keyRisk: "Other unrecorded costs may affect your budget.",
       recommendedAction: "Check repayment dates and total cost.",
     }) }) } },
