@@ -2,6 +2,39 @@
 
 > An AI-powered purchase decision assistant that helps Malaysian youth understand the real financial impact of buying something before checking out.
 
+## Product Showcase
+
+### Your money, at a glance
+
+Track income, spending, upcoming payments and active BNPL commitments in one dashboard.
+
+![BolehBuy finance dashboard showing sample income, monthly commitments, spending breakdown and upcoming payments](docs/screenshots/dashboard.png)
+
+<details>
+<summary>Explore the purchase decision flow</summary>
+
+### 1. Scan before you buy
+
+Upload a checkout screenshot or paste product details, then review the extracted values before calculating.
+
+![Checkout Scanner with a fictional headphones checkout ready for extraction](docs/screenshots/checkout-scanner.png)
+
+### 2. See the purchase impact
+
+Compare buying with waiting and see how a new instalment changes your monthly commitments.
+
+![Purchase Simulator showing a fictional headphones instalment plan, commitment ratio and buy versus do not buy comparison](docs/screenshots/purchase-simulator.png)
+
+### 3. Take a pause with the Cooling Jar
+
+Save a purchase for a 72-hour cooling period before deciding.
+
+![Cooling Jar showing a paused headphones purchase and its remaining cooling time](docs/screenshots/cooling-jar.png)
+
+</details>
+
+*Screenshots use sample finances and a fictional purchase. The simulator shows the app's local analysis; live AI features require a configured Gemini API key.*
+
 ## Overview
 
 BolehBuy? is a personal finance decision-support application designed for Malaysian students and young adults.
